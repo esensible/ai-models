@@ -45,6 +45,27 @@ sudo apt install libosmesa6 libosmesa6-dev libgl1 libglu1-mesa
 `cad/run.sh` wraps the venv with `PYOPENGL_PLATFORM=osmesa` and a writable cache HOME so
 rendering works with no display attached.
 
+## Slicing & printing
+
+The `slice/` and `bambu/` directories take a model from STL to a print on a Bambu Lab P1S,
+headless and LAN-only (no cloud).
+
+- **`slice/slice.sh`** — slice an STL into a printable `.gcode.3mf` with OrcaSlicer. Handles
+  the CLI quirks (flattens profile `inherits` via `flatten_profile.py`, single-extruder
+  config, bed/brim options, and `AVOID_CROSSING=1` to route travels around show-face features).
+- **`slice/merge_twocolor.py`** — a two-colour, co-planar **first-layer text** trick for a
+  *single-nozzle* printer: slice the letters and the surrounding face separately, then splice
+  the G-code so the letters print first, a filament-swap pause fires, and the face prints
+  around them — all in layer 1. `repack_gcode_3mf.py` rewrites the `.gcode.3mf` (and its md5).
+- **`bambu/`** — talk to the printer over LAN: live status (`run.sh`), chamber camera,
+  FTPS upload + MQTT print start (`send.sh`). Credentials (host / access code / serial) are
+  read from `bambu/printer.env`, which is **git-ignored and never committed**.
+- **`print.sh`** — one command: validate against live printer/material state, slice, summarise,
+  and (with `--print`) start the job.
+
+Printer host/access-code/serial live only in `bambu/printer.env` (create it locally; see
+`bambu/README.md`). Nothing printer-identifying beyond the model name is committed.
+
 ## Notes
 
 - Generated artifacts (`cad/out/`, STL/3MF/G-code, PNGs) and the venv are git-ignored.

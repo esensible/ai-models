@@ -1,0 +1,28 @@
+{
+  "_comment": "Material -> slice settings map, keyed by the printer's reported tray_type. filament = OrcaSlicer profile name (flattened by slice.sh). plates = build plates this material may print on (curr_bed_type strings). default_plate used when none is asserted.",
+  "PLA": {
+    "filament": "Bambu PLA Basic @BBL X1C",
+    "plates": ["Cool Plate", "Textured PEI Plate", "Engineering Plate", "Smooth PEI Plate"],
+    "default_plate": "Textured PEI Plate"
+  },
+  "PETG": {
+    "filament": "Bambu PETG Basic @BBL X1C",
+    "plates": ["Textured PEI Plate", "Engineering Plate", "High Temp Plate"],
+    "default_plate": "Textured PEI Plate"
+  },
+  "ABS": {
+    "filament": "Bambu ABS @BBL X1C",
+    "plates": ["Textured PEI Plate", "Engineering Plate", "High Temp Plate"],
+    "default_plate": "Textured PEI Plate"
+  },
+  "ASA": {
+    "filament": "Bambu ASA @BBL X1C",
+    "plates": ["Textured PEI Plate", "Engineering Plate", "High Temp Plate"],
+    "default_plate": "Textured PEI Plate"
+  },
+  "TPU": {
+    "filament": "Bambu TPU 95A @BBL X1C",
+    "plates": ["Textured PEI Plate"],
+    "default_plate": "Textured PEI Plate"
+  }
+}

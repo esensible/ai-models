@@ -17,6 +17,13 @@ cad/out/
 cad/fonts/*.ttf
 cad/fonts/*.otf
 
+# Slicer profiles are regenerated from OrcaSlicer by slice/slice.sh
+slice/profiles/
+
+# Local printer/runtime state
+bambu/loaded.json
+bambu/snapshot.jpg
+
 # Secrets / local config — never commit
 *.env
 *.key
