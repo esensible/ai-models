@@ -1,0 +1,25 @@
+# Python deps for the build123d headless CAD env.
+# Rebuild the venv with:  ./cad/setup.sh   (requires uv)
+#
+# build123d dev branch -> OCP 7.9 via cadquery-ocp-novtk (no bundled VTK).
+git+https://github.com/gumyr/build123d.git@dev
+cadquery-ocp-novtk==7.9.3.1.1
+
+# CAD I/O + geometry
+ezdxf
+trimesh
+py-lib3mf
+
+# headless rendering (needs system libosmesa6/libgl1; PYOPENGL_PLATFORM=osmesa)
+# NOTE: pyrender hard-pins pyopengl==3.1.0, which lacks OSMesaCreateContextAttribs.
+# setup.sh force-upgrades PyOpenGL>=3.1.7 in a second pass (see PYOPENGL_OVERRIDE).
+pyrender
+Pillow            # cad/render.py writes PNG/JPG previews via PIL.Image
+
+# preview / analysis fallback
+matplotlib
+scipy
+scikit-learn
+
+# fast mesh booleans (island bridging, hole punching)
+manifold3d

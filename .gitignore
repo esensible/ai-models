@@ -1,0 +1,24 @@
+# Python / virtualenv
+cad/.venv/
+cad/.home/
+__pycache__/
+*.pyc
+
+# Generated artifacts — models, slices, previews are built, not committed
+cad/out/
+*.stl
+*.3mf
+*.gcode
+*.png
+*.jpg
+*.jpeg
+
+# Fonts are fetched (cad/fonts/fetch.sh), not vendored
+cad/fonts/*.ttf
+cad/fonts/*.otf
+
+# Secrets / local config — never commit
+*.env
+*.key
+id_*
+*printer*
