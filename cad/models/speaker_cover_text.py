@@ -22,6 +22,10 @@ ap.add_argument("--depth", type=float, default=1.2, help="text recess depth")
 ap.add_argument("--tag", default="text")
 ap.add_argument("--no-holes", action="store_true", help="skip perforations (debug the text alone)")
 ap.add_argument("--recess", action="store_true", help="shallow engraving instead of the default clean cut-through")
+ap.add_argument("--perf-text", action="store_true",
+                help="two-colour PERFORATED text: letters are accent colour on the first layer only, "
+                     "but the spiral holes pass through them too (text = colour, not a solid plug). "
+                     "Exports face body (main STL) + font body (--inlay-out). Use --depth 0.2.")
 ap.add_argument("--shift2", type=float, default=0.0, help="move line2 left (mm) in the final view")
 ap.add_argument("--clear", type=float, default=0.0,
                 help="keep perforations this many mm off the letter strokes (so an engraving reads); 0 = holes through text")
@@ -127,15 +131,8 @@ def spiral_points():
 
 pts = spiral_points()
 
-# ---- text recess tool (a clean SOLID, subtracted in one boolean) ----
-TXT_CUT = DEPTH if args.recess else (T_FACE + 2.0)    # default: cut clean through; --recess for shallow
-with BuildPart() as texttool:
-    with BuildSketch(Plane.XY.offset(-T_FACE / 2)):   # on the show face
-        add(mirrored)
-    extrude(amount=TXT_CUT)                            # letters tool: full-through or DEPTH
-
-# ---- build cover ----
-with BuildPart() as cover:
+# ---- build the perforated cover (no text yet): face disc + rim, holes through everything ----
+with BuildPart() as cover_perf:
     Cylinder(radius=R, height=T_FACE)
     with Locations((0, 0, T_FACE / 2 + RIM_H / 2)):
         Cylinder(radius=R, height=RIM_H)
@@ -148,11 +145,34 @@ with BuildPart() as cover:
                 with Locations(*[Location((x, y)) for (x, y) in pts[i:i + BATCH]]):
                     Circle(HOLE_R)
             extrude(amount=-(T_FACE + 2.0), mode=Mode.SUBTRACT)
-    # recess the text by subtracting the clean solid tool
-    add(texttool.part, mode=Mode.SUBTRACT)
 
-part = cover.part
-print(f"text='{args.line1} {args.line2}'  font_size={fs:.1f}mm  holes={len(pts)}")
+if args.perf_text:
+    # PERFORATED two-colour text: the letters are NOT a solid plug. They are just the
+    # accent colour on the FIRST LAYER, and the spiral holes run straight through them
+    # like the rest of the face (so the cover stays acoustically open everywhere).
+    # Build a one-layer-tall letter prism, INTERSECT it with the perforated cover to get
+    # the accent body (perforated letters), then the face body is the rest. The two tile
+    # perfectly and share every hole. Use --depth 0.2 (one layer).
+    LAYER = DEPTH
+    with BuildPart() as letter_prism:
+        with BuildSketch(Plane.XY.offset(-T_FACE / 2)):   # on the show face (prints down)
+            add(mirrored)
+        extrude(amount=LAYER)
+    font_body = cover_perf.part & letter_prism.part       # perforated accent letters, one layer
+    part = cover_perf.part - font_body                    # face body (body colour) = the rest
+    if args.inlay_out:
+        export_stl(font_body, args.inlay_out, tolerance=0.08, angular_tolerance=0.5)
+        print(f"wrote {os.path.relpath(args.inlay_out)}  (perforated font body, {LAYER}mm layer)")
+else:
+    # ---- default: recess/cut the SOLID text into the show face ----
+    TXT_CUT = DEPTH if args.recess else (T_FACE + 2.0)    # default cut-through; --recess for shallow
+    with BuildPart() as texttool:
+        with BuildSketch(Plane.XY.offset(-T_FACE / 2)):
+            add(mirrored)
+        extrude(amount=TXT_CUT)
+    part = cover_perf.part - texttool.part
+
+print(f"text='{args.line1} {args.line2}'  font_size={fs:.1f}mm  holes={len(pts)}  perf_text={args.perf_text}")
 print(f"line widths: {w1:.0f}/{w2:.0f}mm  line height ~{max(h1,h2):.0f}mm")
 bb = part.bounding_box()
 print(f"bbox={bb.size.X:.1f} x {bb.size.Y:.1f} x {bb.size.Z:.1f} mm  volume={part.volume/1000:.1f} cm^3")
@@ -163,10 +183,9 @@ stl = os.path.join(out, f"speaker_cover_{args.tag}.stl")
 export_stl(part, stl, tolerance=0.08, angular_tolerance=0.5)
 print(f"wrote {os.path.relpath(stl)}")
 
-# font inlay body: letters extruded to the FULL recess depth so they fill the
-# cavity flush (co-planar with the show face). This is a real printable body for
-# a two-filament slice — the accent-colour object — not just a render preview.
-if args.inlay_out:
+# font inlay body (SOLID-text recess mode only): letters extruded to fill the cavity
+# flush. For --perf-text the font body is already exported above (perforated).
+if args.inlay_out and not args.perf_text:
     with BuildPart() as inlay:
         with BuildSketch(Plane.XY.offset(-T_FACE / 2)):
             add(mirrored)

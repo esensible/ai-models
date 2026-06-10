@@ -18,8 +18,9 @@ toolchain-specific configuration is kept out by design.
 | `cad/models/wheel.py` | Wheel with twin flanges and a bearing seat |
 | `cad/models/pin_cone.py` | Cone with a coaxial bore + a vertical slice and edge fillets |
 | `cad/models/speaker_cover.py` | Round speaker cover with a perforation field |
-| `cad/models/speaker_cover_text.py` | Speaker cover with large face text + a golden-spiral perforation field |
+| `cad/models/speaker_cover_text.py` | Speaker cover with large face text + a golden-spiral perforation field (incl. `--perf-text` two-colour mode) |
 | `cad/models/speaker_plate.py` | Flat speaker mounting plate |
+| `cad/models/distributor_gear.py` | Helical involute gear (ISO tooth proportions, parametric module/helix/bore/keyway) → STEP + STL |
 | `cad/models/test_plate.py` | Minimal test part (pipeline smoke test) |
 
 Most scripts are parametric — run with `--help` to see options (diameters, lengths,

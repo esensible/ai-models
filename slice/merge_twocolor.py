@@ -50,7 +50,10 @@ def merge(face, font):
     fe = find(font, lambda l: l.strip() == "M625", fs)
     if fs < 0 or fe < 0:
         sys.exit("could not locate font object block")
-    font_block = font[fs:fe + 1]
+    # Drop the font slice's OWN progress commands (M73 P../R../L..) — left in, they
+    # corrupt the merged print's layer/percent/ETA readout (the printer adopts the
+    # font's standalone progress). The face's own M73/M991 layer notifies stay intact.
+    font_block = [l for l in font[fs:fe + 1] if not l.lstrip().startswith("M73")]
 
     # --- insertion point in FACE: just before its layer-1 object starts ---
     ins = find(face, lambda l: l.startswith("; printing object") and "speaker_cover" in l)
