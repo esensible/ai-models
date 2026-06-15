@@ -1,25 +1,24 @@
 """Helical involute gear — replacement for a vintage distributor's nylon gear.
 
-Uses STANDARD ISO involute tooth proportions:
-  - Module m = OD/(Z+2) = 1.0625 (clean: 21.25/20)
-  - Pressure angle 20° → base radius = pitch_R · cos(20°) = 8.985
-  - Addendum = m = 1.06 mm (tip above pitch circle)
-  - Dedendum = 1.25 m = 1.33 mm (root below pitch circle)
-  - Whole depth = 2.25 m = 2.39 mm. (The 1.65 mm originally measured was almost
-    certainly a worn/melted nylon tooth that had lost ~30% of its height —
-    full-depth here so the new gear meshes correctly with a healthy mate.)
+Involute tooth proportions (measured from the original part):
+  - Module m = OD/(Z+2) = 1.075 (21.5/20), standard addendum
+  - Pressure angle 20° → base radius = pitch_R · cos(20°) = 9.092
+  - Addendum = m = 1.07 mm (tip above pitch circle)
+  - Root (blank) diameter measured at 16.5 mm → dedendum 1.42 mm, whole depth
+    2.50 mm. The root is specified DIRECTLY (--root-dia), not from the standard
+    1.25 m dedendum, since the measured part's root is a touch deeper.
 
 Tooth profile in each transverse section: spline-fitted involute from base
 circle to OD, capped with an arc at the tip; below the base circle, a radial
 line drops to the root circle, where an arc connects to the next tooth. The
 section is rotated along Z to sweep the helix (piecewise-ruled loft).
 
-Bore with a keyway at +X. Exports STEP (precise CAD) + STL (print/preview) to
-cad/out/. All dimensions are parametric:
+Bore Ø7 mm with a 2.7 mm wide keyway at +X. Face width 11 mm. Exports STEP
+(precise CAD) + STL (print/preview) to cad/out/. All dimensions are parametric:
 
   ./cad/run.sh cad/models/distributor_gear.py
   ./cad/run.sh cad/models/distributor_gear.py --teeth 18 --helix 22.5 --hand left \\
-       --od 21.25 --bore 7 --face-width 11
+       --od 21.5 --root-dia 16.5 --bore 7 --keyway-w 2.7 --face-width 11
 """
 
 import argparse
@@ -45,13 +44,16 @@ from build123d import (
 )
 
 ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-ap.add_argument("--od", type=float, default=21.25, help="outside (tip) diameter, mm")
+ap.add_argument("--od", type=float, default=21.5, help="outside (tip) diameter, mm")
+ap.add_argument("--root-dia", type=float, default=16.5,
+                help="root (blank) diameter — the cylinder the teeth sit on, mm. "
+                     "Overrides the dedendum-derived root; set <=0 to derive it instead.")
 ap.add_argument("--bore", type=float, default=7.0, help="bore diameter, mm")
 ap.add_argument("--teeth", type=int, default=18, help="number of teeth Z")
 ap.add_argument("--helix", type=float, default=22.5, help="helix angle, deg")
 ap.add_argument("--hand", choices=("left", "right"), default="left", help="helix hand")
 ap.add_argument("--pressure-angle", type=float, default=20.0, help="pressure angle, deg")
-ap.add_argument("--keyway-w", type=float, default=1.0, help="keyway width, mm")
+ap.add_argument("--keyway-w", type=float, default=2.7, help="keyway width, mm")
 ap.add_argument("--keyway-h", type=float, default=1.0, help="keyway depth (radial), mm")
 ap.add_argument("--face-width", type=float, default=11.0, help="gear face width, mm")
 ap.add_argument("--addendum-factor", type=float, default=1.0, help="addendum / module")
@@ -81,8 +83,13 @@ MODULE = OD / (Z_TEETH + 2)
 PITCH_R = MODULE * Z_TEETH / 2
 BASE_R = PITCH_R * math.cos(math.radians(PRESSURE_ANGLE_DEG))
 ADDENDUM = ADDENDUM_FACTOR * MODULE
-DEDENDUM = DEDENDUM_FACTOR * MODULE
-ROOT_R = PITCH_R - DEDENDUM
+# Root: take the measured blank/root diameter directly when given, else derive it
+# from the standard dedendum. (A measured part may have a non-standard root depth.)
+if args.root_dia > 0:
+    ROOT_R = args.root_dia / 2
+else:
+    ROOT_R = PITCH_R - DEDENDUM_FACTOR * MODULE
+DEDENDUM = PITCH_R - ROOT_R          # actual dedendum (below pitch circle)
 WHOLE_DEPTH = ADDENDUM + DEDENDUM
 
 EPS = 1e-3

@@ -37,24 +37,30 @@ def main():
     ap.add_argument("--overlay", default=None, help="second STL drawn in --overlay-color")
     ap.add_argument("--overlay-color", default="30,32,38")
     ap.add_argument("--zoom", type=float, default=1.0, help="<1 pulls camera back")
+    ap.add_argument("--flip", action="store_true",
+                    help="rotate 180 deg about X (put the bottom end up top)")
     args = ap.parse_args()
 
     mesh = trimesh.load(args.stl)
+    if args.flip:
+        mesh.apply_transform(trimesh.transformations.rotation_matrix(np.pi, [1, 0, 0]))
     shift = -mesh.bounding_box.centroid
     mesh.apply_translation(shift)
     radius = np.linalg.norm(mesh.bounding_box.extents) / 2.0
 
     rgb = [int(c) / 255.0 for c in args.color.split(",")]
     material = pyrender.MetallicRoughnessMaterial(
-        baseColorFactor=[*rgb, 1.0], metallicFactor=0.25, roughnessFactor=0.55
+        baseColorFactor=[*rgb, 1.0], metallicFactor=0.0, roughnessFactor=0.45
     )
 
-    amb = [0.10, 0.11, 0.12] if args.deboss else [0.28, 0.30, 0.33]
+    amb = [0.06, 0.07, 0.08] if args.deboss else [0.14, 0.15, 0.17]
     scene = pyrender.Scene(bg_color=[0.09, 0.10, 0.12, 1.0], ambient_light=amb)
     scene.add(pyrender.Mesh.from_trimesh(mesh, material=material, smooth=False))
 
     if args.overlay:
         ov = trimesh.load(args.overlay)
+        if args.flip:
+            ov.apply_transform(trimesh.transformations.rotation_matrix(np.pi, [1, 0, 0]))
         ov.apply_translation(shift)   # align to the main mesh's centering
         orgb = [int(c) / 255.0 for c in args.overlay_color.split(",")]
         omat = pyrender.MetallicRoughnessMaterial(
@@ -81,15 +87,19 @@ def main():
 
     scene.add(pyrender.PerspectiveCamera(yfov=np.pi / 5.0), pose=cam_pose)
 
+    # NOTE: pyrender DirectionalLight contributes nothing under this OSMesa build,
+    # so we use PointLights (intensity is candela -> scale by dist^2 to stay constant
+    # as the part size changes). Key/fill/rim three-point rig for readable form.
+    P = radius * radius
     if args.deboss:
-        # grazing key (rakes across the face to shadow recess walls) + soft fill
-        lights = [((0.85, 0.45, -0.28), 5.5), ((-0.4, -0.2, -0.9), 1.2)]
+        lights = [((0.85, 0.45, -0.28), 90.0 * P), ((-0.4, -0.2, -0.9), 20.0 * P)]
     else:
-        lights = [((0.4, -0.6, -1.0), 4.2), ((-0.7, -0.3, -0.6), 2.0),
-                  ((0.0, 0.5, 0.8), 1.6)]
+        lights = [((0.5, -0.7, 0.9), 180.0 * P),  # key, high 3/4
+                  ((-0.8, -0.4, 0.2), 75.0 * P),  # fill, opposite side
+                  ((0.1, 0.6, -0.7), 60.0 * P)]   # rim, from behind/below
     for vec, intensity in lights:
         v = np.array(vec); v = v / np.linalg.norm(v)
-        scene.add(pyrender.DirectionalLight(color=[1, 1, 1], intensity=intensity),
+        scene.add(pyrender.PointLight(color=[1, 1, 1], intensity=intensity),
                   pose=look_at(v * dist, np.array([0, 0, 0.0])))
 
     w, h = (int(x) for x in args.size.split("x"))

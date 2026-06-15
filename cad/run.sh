@@ -9,5 +9,5 @@ CAD="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export PYOPENGL_PLATFORM=osmesa        # off-screen software GL (no display needed)
 export HOME="$CAD/.home"               # writable HOME for ezdxf/fontconfig caches
 export XDG_CACHE_HOME="$CAD/.home/.cache"
-mkdir -p "$HOME" "$XDG_CACHE_HOME"
+mkdir -p "$HOME" "$XDG_CACHE_HOME" "$CAD/out"
 exec "$CAD/.venv/bin/python" "$@"

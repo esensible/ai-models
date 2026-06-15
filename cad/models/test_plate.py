@@ -14,13 +14,13 @@ with BuildPart() as part:
     extrude(amount=THICK)
 
 solid = part.part
-export_stl(solid, "out/test_plate.stl")
+export_stl(solid, "cad/out/test_plate.stl")
 
 mesher = Mesher()
 mesher.add_shape(solid)
-mesher.write("out/test_plate.3mf")
+mesher.write("cad/out/test_plate.3mf")
 
 bb = solid.bounding_box()
 print(f"volume_mm3={solid.volume:.1f}")
 print(f"bbox={bb.size.X:.1f} x {bb.size.Y:.1f} x {bb.size.Z:.1f} mm")
-print("wrote out/test_plate.stl and out/test_plate.3mf")
+print("wrote cad/out/test_plate.stl and cad/out/test_plate.3mf")

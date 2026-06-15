@@ -28,17 +28,28 @@ def summarize(p: dict) -> str:
     if not p:
         return ""
     g = p.get
+    # The P1S has no real chamber thermistor (chamber_temper reads junk), so when
+    # the hotend is unpowered the nozzle sensor tracks chamber air — use it as a
+    # proxy. Mid-print the nozzle is hot and meaningless as ambient, so skip it.
+    noz, noz_t = g("nozzle_temper"), g("nozzle_target_temper")
+    chamber_proxy = None
+    if noz is not None and not noz_t and noz < 50:
+        chamber_proxy = f"~{noz}°C (hotend proxy)"
     rows = [
         ("Nozzle", f"{g('nozzle_temper')}°C / {g('nozzle_target_temper')}°C", "nozzle_temper"),
         ("Bed", f"{g('bed_temper')}°C / {g('bed_target_temper')}°C", "bed_temper"),
-        ("Chamber", f"{g('chamber_temper')}°C", "chamber_temper"),
+        ("Chamber", chamber_proxy, None),
         ("State", g("gcode_state"), "gcode_state"),
         ("Progress", f"{g('mc_percent')}%  (layer {g('layer_num')}/{g('total_layer_num')})", "mc_percent"),
         ("ETA", f"{g('mc_remaining_time')} min", "mc_remaining_time"),
         ("File", g("gcode_file"), "gcode_file"),
         ("WiFi", g("wifi_signal"), "wifi_signal"),
     ]
-    return "\n".join(f"  {label:9} {val}" for label, val, key in rows if p.get(key) not in (None, ""))
+    # key=None rows carry their own pre-computed value (None = hide); data-backed
+    # rows are hidden when the underlying field is missing/empty.
+    def show(val, key):
+        return val is not None if key is None else p.get(key) not in (None, "")
+    return "\n".join(f"  {label:9} {val}" for label, val, key in rows if show(val, key))
 
 
 def main() -> int:
@@ -85,7 +96,7 @@ def main() -> int:
             print(f"=== Bambu P1S @ {args.host} ===")
             print(out)
 
-    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="bambu")
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="emily-bambu")
     client.username_pw_set("bblp", args.code)
     client.tls_set(cert_reqs=ssl.CERT_NONE)   # printer uses a self-signed cert
     client.tls_insecure_set(True)

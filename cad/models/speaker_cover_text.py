@@ -161,7 +161,7 @@ if args.perf_text:
     font_body = cover_perf.part & letter_prism.part       # perforated accent letters, one layer
     part = cover_perf.part - font_body                    # face body (body colour) = the rest
     if args.inlay_out:
-        export_stl(font_body, args.inlay_out, tolerance=0.08, angular_tolerance=0.5)
+        export_stl(font_body, args.inlay_out, tolerance=0.05, angular_tolerance=0.1)
         print(f"wrote {os.path.relpath(args.inlay_out)}  (perforated font body, {LAYER}mm layer)")
 else:
     # ---- default: recess/cut the SOLID text into the show face ----
@@ -180,8 +180,17 @@ print(f"bbox={bb.size.X:.1f} x {bb.size.Y:.1f} x {bb.size.Z:.1f} mm  volume={par
 out = os.path.join(os.path.dirname(__file__), "..", "out")
 os.makedirs(out, exist_ok=True)
 stl = os.path.join(out, f"speaker_cover_{args.tag}.stl")
-export_stl(part, stl, tolerance=0.08, angular_tolerance=0.5)
+# The boolean ops (329 holes + the two-colour split) leave a noisy triangulation on
+# the curved walls (~160um scatter). Drop it and force a fresh, fine, uniform mesh so
+# the round surfaces stay within ~50um of true.
+export_stl(part, stl, tolerance=0.05, angular_tolerance=0.1)
 print(f"wrote {os.path.relpath(stl)}")
+# Also export exact BREP. The headless slicer only eats meshes, and meshing this
+# 329-hole boolean leaves ~160um of noise on the curved walls (finer crashes OCC).
+# For true-round / <=50um, slice this STEP in the desktop GUI instead of the STL.
+step = os.path.join(out, f"speaker_cover_{args.tag}.step")
+export_step(part, step)
+print(f"wrote {os.path.relpath(step)}  (exact geometry — GUI-slice for true-round)")
 
 # font inlay body (SOLID-text recess mode only): letters extruded to fill the cavity
 # flush. For --perf-text the font body is already exported above (perforated).
@@ -190,5 +199,5 @@ if args.inlay_out and not args.perf_text:
         with BuildSketch(Plane.XY.offset(-T_FACE / 2)):
             add(mirrored)
         extrude(amount=DEPTH)
-    export_stl(inlay.part, args.inlay_out, tolerance=0.08, angular_tolerance=0.5)
+    export_stl(inlay.part, args.inlay_out, tolerance=0.05, angular_tolerance=0.1)
     print(f"wrote {os.path.relpath(args.inlay_out)}")
