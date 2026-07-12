@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# dc — drive a dev container running an ai-models remote-control Claude agent.
+#
+#   dc ls                            list containers + which repo each hosts
+#   dc start <container>             start a stopped container
+#   dc stop  <container>             stop a container (graceful; reversible)
+#   dc agent <container> [<branch>]  clone/update ai-models on <branch> in <container>
+#                                    and launch a remote-control Claude session (default: main)
+#   dc kill  <container>             stop the agent session (leaves the container running)
+#
+# Requires: podman (or `DC_RUNTIME=docker`). The target container must already have
+# git, node, uv, python3 and an authenticated `claude` on PATH. This helper is
+# IMAGE-AGNOSTIC — it drives a container by name and does not prescribe or depend on any
+# particular base image (no dependency on any other repo).
+#
+# Mechanics + gotchas live in the personal `dev-containers` skill; this is the ai-models wrapper.
+set -euo pipefail
+
+REPO_URL="git@github.com:esensible/ai-models.git"
+REPO_DIR="/root/ai-models"     # clone location inside the container
+RC_NAME="ai-models"            # remote-control session name (shown in the Claude app)
+GIT_NAME="sensible-claw"
+GIT_EMAIL="292031241+sensible-claw@users.noreply.github.com"
+CE="${DC_RUNTIME:-podman}"     # container runtime; override: DC_RUNTIME=docker
+
+die() { echo "dc: $*" >&2; exit 1; }
+
+need_running() {
+  $CE ps --format '{{.Names}}' | grep -qxF "$1" || die "container not running: $1  (try: dc start $1)"
+}
+
+cmd="${1:-}"; shift || true
+case "$cmd" in
+  ls|list)
+    $CE ps -a --format '{{.Names}}\t{{.Image}}\t{{.Status}}'
+    echo "--- repo at /workspace (running containers) ---"
+    for c in $($CE ps --format '{{.Names}}'); do
+      url="$($CE exec "$c" git -C /workspace remote get-url origin 2>/dev/null || echo n/a)"
+      echo "  $c -> $url"
+    done
+    ;;
+
+  start) $CE start "${1:?usage: dc start <container>}" ;;
+  stop)  $CE stop  "${1:?usage: dc stop <container>}" ;;
+
+  agent)
+    c="${1:?usage: dc agent <container> [<branch>]}"; branch="${2:-main}"
+    need_running "$c"
+    # Fail loud if the toolchain / claude isn't present (per docs/eng/conventions.md).
+    for bin in git node uv python3 claude; do
+      $CE exec "$c" bash -lc "command -v $bin >/dev/null 2>&1" \
+        || die "container '$c' is missing a required tool: $bin"
+    done
+    # Clone the repo, or update an existing checkout, onto the requested branch.
+    if $CE exec "$c" test -d "$REPO_DIR/.git"; then
+      $CE exec "$c" git -C "$REPO_DIR" fetch origin
+      $CE exec "$c" git -C "$REPO_DIR" checkout "$branch"
+      $CE exec "$c" git -C "$REPO_DIR" pull --ff-only origin "$branch"
+    else
+      $CE exec "$c" git clone --branch "$branch" "$REPO_URL" "$REPO_DIR"
+    fi
+    $CE exec "$c" git -C "$REPO_DIR" config user.name  "$GIT_NAME"
+    $CE exec "$c" git -C "$REPO_DIR" config user.email "$GIT_EMAIL"
+    # Write the launcher inside the container (env-expanded values baked in) and start it
+    # detached with a PTY. TERM=xterm-256color (dumb hangs the TUI); sleep infinity keeps
+    # stdin open; script -qfec gives a flushing PTY; --debug-file lets us confirm the bridge.
+    $CE exec -i "$c" bash -c "cat > /root/launch-rc.sh" <<LAUNCH
+#!/bin/bash
+cd $REPO_DIR || exit 1
+export TERM=xterm-256color
+sleep infinity | script -qfec 'claude --remote-control $RC_NAME --debug-file /root/rc.debug.log' /root/rc.log
+LAUNCH
+    $CE exec "$c" rm -f /root/rc.log /root/rc.debug.log
+    $CE exec -d "$c" setsid bash /root/launch-rc.sh
+    echo "dc: launching agent '$RC_NAME' in '$c' on branch '$branch' ..."
+    # Confirm the remote bridge reaches state=connected (not by hunting for a URL).
+    if $CE exec "$c" bash -lc 'for i in $(seq 1 40); do grep -qi "state=connected" /root/rc.debug.log 2>/dev/null && exit 0; sleep 1; done; exit 1'; then
+      echo "dc: connected. Open the Claude app -> remote sessions -> '$RC_NAME'."
+      echo "dc: accept the one-time folder-trust prompt on first connect (a human gate)."
+    else
+      die "agent did not reach state=connected within 40s — inspect: $CE exec $c cat /root/rc.debug.log"
+    fi
+    ;;
+
+  kill)
+    c="${1:?usage: dc kill <container>}"
+    need_running "$c"
+    # Kill by explicit PID. (pgrep here is safe from the pkill self-match trap: this runs from
+    # a script file, so the shell's cmdline is the script path, not the search pattern.)
+    pids="$($CE exec "$c" pgrep -f "remote-control $RC_NAME" 2>/dev/null || true)"
+    sleeps="$($CE exec "$c" pgrep -f 'sleep infinity' 2>/dev/null || true)"
+    if [ -z "${pids}${sleeps}" ]; then
+      echo "dc: no '$RC_NAME' agent session found in '$c'"; exit 0
+    fi
+    $CE exec "$c" kill $pids $sleeps 2>/dev/null || true
+    echo "dc: killed '$RC_NAME' agent session in '$c' (container left running)"
+    ;;
+
+  *)
+    echo "usage: dc {ls | start <c> | stop <c> | agent <c> [<branch>] | kill <c>}" >&2
+    exit 1
+    ;;
+esac

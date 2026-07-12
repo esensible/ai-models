@@ -31,6 +31,8 @@ pointing at `ai-models/skills`. Don't copy this code back into the workspace.
 - `bambu/`  — printer control: `printflow.py`, `print_job.py`, `camera.py`, `send.sh`, `run.sh`, …
 - `print.sh` — one-command driver: validate → slice → (optional) print
 - `skills/model/SKILL.md` — the agent skill that ties it together (read this first)
+- `skills/dev-container/` — `dc` helper + skill to run a remote-control Claude agent in a dev
+  container against this repo (mirrors the personal `dev-containers` skill)
 
 ## Quick start
 See `README.md` (env setup) and `skills/model/SKILL.md` (full workflow + safety rules).
