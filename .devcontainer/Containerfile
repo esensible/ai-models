@@ -16,7 +16,11 @@ ENV PYOPENGL_PLATFORM=osmesa
 
 # --- System deps -----------------------------------------------------------
 # build-essential + python3-dev: some CAD wheels (manifold3d, …) compile native.
-# libosmesa6 + libgl1 + libglu1-mesa: headless software GL for pyrender.
+# libosmesa6 + libgl1 + libglu1-mesa: headless software GL (OSMesa) — the render backend.
+# libx* (Xrender/Xext/Xfixes/Xi/Xrandr/Xxf86vm): pyrender eagerly imports its interactive
+#   pyglet Viewer at load time, which dlopen()s these even though headless rendering never
+#   touches them; without libXrender the import dies (XRenderFindVisualFormat on None).
+#   (silvin-dev happened to have these via playwright's chromium deps — why it "worked" there.)
 # git: build123d is pulled from a git branch by cad/setup.sh.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -36,6 +40,12 @@ RUN apt-get update && \
         libosmesa6-dev \
         libgl1 \
         libglu1-mesa \
+        libxrender1 \
+        libxext6 \
+        libxfixes3 \
+        libxi6 \
+        libxrandr2 \
+        libxxf86vm1 \
         libgomp1 \
         fontconfig && \
     rm -rf /var/lib/apt/lists/*
