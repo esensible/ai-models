@@ -1,0 +1,72 @@
+# ai-models dev container — 3D modelling / render / slice / print toolchain.
+#
+# Deliberately independent of any other project's image. Scope: build123d CAD,
+# headless GL preview rendering, Bambu P1S LAN control, and (staged) OrcaSlicer.
+# The heavy CAD Python deps (build123d / OCP) are NOT baked here — cad/setup.sh
+# installs them into the repo's own venv (cad/.venv) via uv. This image only
+# provides the system libs + uv so that venv can build.
+FROM ubuntu:24.04
+
+ARG TARGETARCH
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Headless software GL for the build123d / pyrender preview pipeline (cad/).
+# (This is what moved OUT of silvin-dev — it belongs here.)
+ENV PYOPENGL_PLATFORM=osmesa
+
+# --- System deps -----------------------------------------------------------
+# build-essential + python3-dev: some CAD wheels (manifold3d, …) compile native.
+# libosmesa6 + libgl1 + libglu1-mesa: headless software GL for pyrender.
+# git: build123d is pulled from a git branch by cad/setup.sh.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        curl \
+        wget \
+        git \
+        jq \
+        unzip \
+        procps \
+        python3 \
+        python3-pip \
+        python3-dev \
+        python3-venv \
+        libosmesa6 \
+        libosmesa6-dev \
+        libgl1 \
+        libglu1-mesa \
+        libgomp1 \
+        fontconfig && \
+    rm -rf /var/lib/apt/lists/*
+
+# --- uv — builds the cad/ venv at runtime (cad/setup.sh) --------------------
+RUN pip3 install --break-system-packages uv
+
+# --- Bambu P1S control (bambu/) --------------------------------------------
+# LAN control uses paho-mqtt; everything else is stdlib (ftplib/ssl/socket/struct).
+RUN pip3 install --break-system-packages paho-mqtt
+
+# --- Claude Code — for remote-control dev agents in this container ----------
+RUN curl -fsSL https://claude.ai/install.sh | bash
+ENV PATH="/root/.local/bin:${PATH}"
+
+# --- OrcaSlicer 2.3.2 (STAGED — not yet installed) -------------------------
+# arm64 OrcaSlicer ships ONLY as a Flatpak:
+#   OrcaSlicer-Linux-flatpak_V2.3.2_aarch64.flatpak
+# (upstream provides no arm64 AppImage — the x86_64 AppImage won't run here).
+# Running a Flatpak'd CLI app headless inside a container needs flatpak + the
+# flathub runtime + a working bubblewrap sandbox, which is finicky under rootless
+# podman. slice/slice.sh calls `orca-slicer`, so this layer must end with an
+# `orca-slicer` on PATH (a wrapper around `flatpak run …`, or an extracted binary).
+# Deferred until validated end-to-end so a flaky slicer layer can't break the
+# rest of the image. Tracking: needs flatpak install of the aarch64 bundle.
+
+# Verify the core toolchain built.
+RUN python3 --version && \
+    uv --version && \
+    python3 -c "import paho.mqtt.client" && \
+    claude --version && \
+    dpkg -s libosmesa6 >/dev/null
+
+ENTRYPOINT ["bash"]

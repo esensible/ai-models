@@ -1,0 +1,24 @@
+{
+    "name": "ai-models Dev Environment",
+    // Build the image first (also used by the skills/dev-container `dc` helper):
+    //   podman build --platform linux/arm64 -f .devcontainer/Containerfile -t ai-models-dev:latest .
+    "image": "ai-models-dev:latest",
+    "runArgs": [
+        "--memory=8000m"
+    ],
+    "workspaceFolder": "/workspace",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "mounts": [
+        // uv wheel cache — keeps cad/setup.sh's large OCP wheel install fast across rebuilds.
+        "type=volume,source=ai_models_uv_cache,target=/root/.cache",
+        // Claude Code onboarding/trust/login state (see CLAUDE_CONFIG_DIR below).
+        "type=volume,source=ai_models_dot_claude,target=/root/.claude",
+        "type=bind,source=${localEnv:HOME}/.ssh,target=/root/.ssh,readonly"
+    ],
+    "containerEnv": {
+        // Persist ~/.claude.json in the dot_claude volume so container rebuilds don't
+        // re-run interactive onboarding (same trick as the silvin devcontainers).
+        "CLAUDE_CONFIG_DIR": "/root/.claude"
+    },
+    "remoteUser": "root"
+}
