@@ -1,49 +1,63 @@
 ---
 name: dev-container
-description: Run a remote-controllable Claude Code agent in a dev container against this (ai-models) repo. Use to start/stop a container or launch/stop a `claude --remote-control` session for an ai-models branch via the `dc` helper. Defers to the personal `dev-containers` skill for the underlying mechanics and gotchas.
+description: Launch and manage a remote-control Claude agent inside the ai-models dev container. Use to start/stop the container, fire up a `claude --remote-control` session in it (or resume a prior one by id), or kill it — via the `dc` helper. Ports silvin's `worktree` skill (launch + resume recipe), adapted for ai-models (single container, no worktrees).
 ---
 
 # ai-models dev-container agent
 
-Launch a Claude agent inside a Podman/Docker dev container — checked out on an ai-models
-branch and controllable from the Claude app/web. The `dc` helper next to this file wraps the
-mechanics; the personal **`dev-containers`** skill holds the full, repo-agnostic playbook.
+Run a Claude agent inside the ai-models dev container — the repo mounted at `/workspace`,
+controllable from the Claude app/web. The `dc` helper next to this file automates the launch
+(the same hard-won recipe as silvin's `.claude/skills/worktree`), so **don't hand-roll the
+`script` / `sleep infinity` dance** each time.
+
+## The container (prereq)
+
+Create it from the ai-models devcontainer (`.devcontainer/`, image `ai-models-dev`): VS Code
+"Reopen in Container", or `devcontainer up --workspace-folder <repo>`. It bind-mounts the repo
+at `/workspace`, provides `git`/`uv`/`python3`/`claude`, and persists claude auth in the
+`ai_models_dot_claude` volume (`CLAUDE_CONFIG_DIR=/root/.claude`).
+
+**One-time:** run `claude` once in that container to log in — it persists in the volume. The
+`dc` commands **fail loud** if it isn't authenticated.
 
 ## The `dc` helper
 
 ```
-skills/dev-container/dc ls                         # containers + which repo each hosts
-skills/dev-container/dc start <container>
-skills/dev-container/dc stop  <container>
-skills/dev-container/dc agent <container> [<branch>]   # clone/update ai-models + launch agent (default: main)
-skills/dev-container/dc kill  <container>          # stop the agent session (leaves the container up)
+skills/dev-container/dc ls                 # containers + which repo each mounts at /workspace
+skills/dev-container/dc start  <container>
+skills/dev-container/dc stop   <container>
+skills/dev-container/dc agent  <container> # launch a FRESH remote-control session in /workspace
+skills/dev-container/dc resume <container> # relaunch, RESUMING the real prior session by id
+skills/dev-container/dc kill   <container> # stop the session (container stays up)
 ```
 
-`dc agent`:
-- **fails loud** if the container lacks `git`/`node`/`uv`/`python3`/`claude` (per
-  `docs/eng/conventions.md`);
-- clones `esensible/ai-models` to `/root/ai-models` in the container (or updates an existing
-  checkout) on the requested branch, and sets the `sensible-claw` git identity;
-- launches `claude --remote-control ai-models` with the headless PTY recipe and **confirms the
-  remote bridge reaches `state=connected`** before returning.
+`dc agent` preflights the container (ai-models at `/workspace`, tools present, claude
+authenticated), launches `claude --remote-control ai-models` under a PTY, and **confirms the
+bridge reaches `state=connected`** before returning. Then open the Claude app → remote sessions
+→ **ai-models** and accept the one-time folder-trust prompt (a human gate — don't script it).
 
-Then open the Claude app → remote sessions → **ai-models**, and **accept the one-time
-folder-trust prompt** on first connect (a human gate — don't script around it).
+## Restarting — RESUME, never relaunch blank
+
+A session dies when its process is killed or the remote bridge's JWT refresh fails (common
+after a `/login` rotates credentials out from under it). **`dc agent` starts a BLANK
+conversation** — a blank relaunch orphans all prior context. To get the context back, use
+**`dc resume <container>`**: it finds the real prior session (the **biggest** `.jsonl`
+transcript under `…/projects/-workspace/` — a blank relaunch leaves a newer *empty* one) and
+relaunches with `--resume <id> --remote-control`. On resume, claude first tries the recorded
+(now-dead) bridge, then `--remote-control` builds a fresh one — `state=connected` is the
+success signal. (`dc resume` handles all of this; `--resume` first, never `--fork-session`,
+never `--continue`.)
 
 ## Notes
 
-- **Image-agnostic, no external-repo dependency.** `dc` drives a container *by name*; it does
-  not prescribe a base image. Provide a container that already has the toolchain and an
-  authenticated `claude`. Override the runtime with `DC_RUNTIME=docker`.
-- **Root containers can't skip permissions.** Claude refuses `--dangerously-skip-permissions`
-  as root. For unattended runs, add a scoped `.claude/settings.local.json` allow-list to the
-  checkout (an explicit allow-list, *not* a blanket skip) — see the personal skill for the
-  exact shape.
-- ai-models ships no committed `.devcontainer`. If you add one later, keep `dc`
-  image-agnostic (drive by container name, don't hardcode an image).
-
-## When there's no `dc` (or you're in another repo)
-
-Fall back to the personal **`dev-containers`** skill. It does all of this by hand and is
-written to work with or without repo-local tooling — check for a repo helper first, otherwise
-apply the recipes directly.
+- **No worktrees here.** Unlike silvin (whose `worktree` skill + `wt` tool this ports from),
+  ai-models runs a *single* dev container on the repo at `/workspace` — no `wt`/worktree
+  machinery. Need parallel branches? Use separate containers, not in-container worktrees.
+- **Runs in the mounted `/workspace`** (like silvin), not a fresh clone — so the agent works on
+  your actual checkout. `dc` drives a container *by name* and is image-agnostic; override the
+  runtime with `DC_RUNTIME=docker`.
+- **Root can't skip permissions.** For an *unattended* agent, drop a scoped
+  `.claude/settings.local.json` allow-list in the repo (an explicit allow-list, not a blanket
+  `--dangerously-skip-permissions`, which is refused as root) — see the personal skill.
+- **Full mechanics/gotchas** (PTY, `TERM`, `--debug-file`, kill-by-PID, the `pkill -f`
+  self-match trap): the personal **`dev-containers`** skill.
