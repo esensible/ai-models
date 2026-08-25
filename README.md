@@ -1,77 +1,50 @@
 # ai-models
 
-Parametric 3D models authored in code with [build123d](https://github.com/gumyr/build123d)
-(Python), plus a **headless render pipeline** that previews them as PNGs on a machine
-with no display (pyrender + OSMesa software GL).
+Parametric 3D models authored in code with [build123d](https://github.com/gumyr/build123d),
+plus everything needed to take them to a print on a Bambu Lab P1S, headless and
+LAN-only: preview rendering (pyrender + OSMesa), OrcaSlicer CLI slicing, and
+printer control over MQTT/FTPS.
 
-These models are the front end of a model → preview → slice → **print** workflow that
-drives an FDM 3D printer. This repo holds the modelling and preview side; printer- and
-toolchain-specific configuration is kept out by design.
+## Layout
 
-## Models
+- `cad/` — models (`cad/models/`, one script or directory per part), the
+  headless render pipeline (`render.py`), env setup (`setup.sh`,
+  `requirements.txt`). Everything runs through `./cad/run.sh`; exports land in
+  the git-ignored `cad/out/`.
+- `slice/` — STL → printable `.gcode.3mf`: `slice.sh` (OrcaSlicer CLI + its
+  quirk workarounds), per-filament configs (`filaments/`), nozzle→profile map
+  (`nozzles.json`), placement/post-processing/verification tools.
+- `printer/` — P1S LAN control: status, chamber camera, g-code, FTPS/MQTT
+  send, and the print driver (`printflow.py`).
+- `print.sh` — the one-command front door to the print driver.
+- `skills/model/SKILL.md` — **the operational runbook for agents**: modelling
+  conventions, slice/print gotchas, safety rules. Read it before doing
+  anything non-trivial; it is the detail this README deliberately omits.
 
-| Script | What it is |
-| --- | --- |
-| `cad/models/cube20.py` | 20&nbsp;mm calibration cube |
-| `cad/models/tube.py` | Plain parametric tube |
-| `cad/models/spacers.py` | Cylindrical spacers — parametric ID/OD/length, optional 45° cut end |
-| `cad/models/wheel.py` | Wheel with twin flanges and a bearing seat |
-| `cad/models/pin_cone.py` | Cone with a coaxial bore + a vertical slice and edge fillets |
-| `cad/models/speaker_cover.py` | Round speaker cover with a perforation field |
-| `cad/models/speaker_cover_text.py` | Speaker cover with large face text + a golden-spiral perforation field (incl. `--perf-text` two-colour mode) |
-| `cad/models/speaker_plate.py` | Flat speaker mounting plate |
-| `cad/models/distributor_gear.py` | Helical involute gear (ISO tooth proportions, parametric module/helix/bore/keyway) → STEP + STL |
-| `cad/models/test_plate.py` | Minimal test part (pipeline smoke test) |
-
-Most scripts are parametric — run with `--help` to see options (diameters, lengths,
-text, etc.) and export STL/3MF.
-
-## Quick start
+## Up and running
 
 ```bash
-# 1. System GL libraries for headless rendering (Debian/Ubuntu names):
-sudo apt install libosmesa6 libosmesa6-dev libgl1 libglu1-mesa
+# Dev container users: .devcontainer/ provides all of this — skip to step 3.
+sudo apt install libosmesa6 libgl1 libglu1-mesa   # headless GL
+./cad/setup.sh                                    # build the venv (needs uv)
 
-# 2. Build the Python env (requires uv: https://github.com/astral-sh/uv):
-./cad/setup.sh
-
-# 3. Fonts used for engraved/embossed text (fetched, not vendored):
-./cad/fonts/fetch.sh
-
-# 4. Run a model — exports to cad/out/ and can render a preview PNG:
-./cad/run.sh cad/models/speaker_cover_text.py --diameter 130 --line1 Hello --line2 World
-./cad/run.sh cad/render.py cad/out/speaker_cover_text.stl cad/out/preview.png --view face
+./cad/run.sh cad/models/<model>.py                # build + export a model
+./cad/run.sh cad/render.py cad/out/<part>.stl cad/out/preview.png
 ```
 
-`cad/run.sh` wraps the venv with `PYOPENGL_PLATFORM=osmesa` and a writable cache HOME so
-rendering works with no display attached.
+Models with engraved/embossed text need fonts once: `./cad/fonts/fetch.sh`.
 
-## Slicing & printing
+## Printing
 
-The `slice/` and `printer/` directories take a model from STL to a print on a Bambu Lab P1S,
-headless and LAN-only (no cloud).
+`./print.sh <part>.stl` prepares and verifies a job; `--print` gates the
+actual start behind a bed-photo check. Two things the printer cannot tell you,
+so the repo never guesses them:
 
-- **`slice/slice.sh`** — slice an STL into a printable `.gcode.3mf` with OrcaSlicer. Handles
-  the CLI quirks (flattens profile `inherits` via `flatten_profile.py`, single-extruder
-  config, bed/brim options, and `AVOID_CROSSING=1` to route travels around show-face features).
-- **`slice/merge_twocolor.py`** — a two-colour, co-planar **first-layer text** trick for a
-  *single-nozzle* printer: slice the letters and the surrounding face separately, then splice
-  the G-code so the letters print first, a filament-swap pause fires, and the face prints
-  around them — all in layer 1. `repack_gcode_3mf.py` rewrites the `.gcode.3mf` (and its md5).
-- **`printer/`** — talk to the printer over LAN: live status (`run.sh`), chamber camera,
-  FTPS upload + MQTT print start (`send.sh`). Credentials (host / access code / serial) are
-  loaded from `$BAMBU_ENV_FILE` — the `printer` volume in the dev container, never the repo.
-- **`print.sh`** — one command: validate against live printer/material state, slice, summarise,
-  and (with `--print`) start the job.
-
-Printer host/access-code/serial live in the `printer` named volume (see
-`printer/README.md`) — not in the repo or on the host. Nothing printer-identifying is committed.
-
-## Notes
-
-- Generated artifacts (`cad/out/`, STL/3MF/G-code, PNGs) and the venv are git-ignored.
-- Fonts are fetched from Google Fonts (OFL / Apache) rather than vendored — see
-  `cad/fonts/fetch.sh`. Proprietary fonts are never committed.
+- **Physical state is user-declared.** `printer/loaded.json` (git-ignored)
+  records the loaded filament, plate, and nozzle. If it's missing or stale,
+  ask the user — never trust the printer's own filament/nozzle reports.
+- **Credentials** (host / access code / serial) load from `$BAMBU_ENV_FILE`
+  (a named volume in the dev container) — never the repo.
 
 ## License
 
