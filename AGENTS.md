@@ -8,7 +8,7 @@ Multiple agents share it. Keep it focused and clean.
 ✅ Everything model/printer related:
 - build123d parametric models + the headless render/preview pipeline (`cad/`)
 - slicing (OrcaSlicer wrappers, profiles, materials) (`slice/`)
-- Bambu P1S control: status, camera, send/print, g-code (`bambu/`)
+- Bambu P1S control: status, camera, send/print, g-code (`printer/`)
 - the `model` AgentSkill (`skills/model/`)
 - supporting tooling, scripts, and docs for any of the above
 
@@ -17,8 +17,9 @@ Multiple agents share it. Keep it focused and clean.
 ❌ Anything personal or environment-specific:
 - personal/health data (e.g. CLL, symptoms) — belongs in the private workspace, never here
 - OpenClaw memory / `SOUL.md` / `MEMORY.md` / identity / agent config
-- secrets & local state: `*.env`, printer access codes, `bambu/loaded.json`,
-  `bambu/printer.env`, camera snapshots (all gitignored — keep it that way)
+- secrets & local state: `*.env`, printer access codes, `printer/loaded.json`,
+  `printer/printer.env` (fallback only — real creds live in the `printer` volume),
+  camera snapshots (all gitignored — keep it that way)
 - anything unrelated to modelling/printing
 
 If you're an OpenClaw agent: model/print code is NOT replicated into the workspace.
@@ -28,7 +29,7 @@ pointing at `ai-models/skills`. Don't copy this code back into the workspace.
 ## Layout
 - `cad/`    — build123d models (`cad/models/*.py`), `run.sh`, `setup.sh`, `render.py`
 - `slice/`  — `slice.sh`, `flatten_profile.py`, `materials.json`
-- `bambu/`  — printer control: `printflow.py`, `print_job.py`, `camera.py`, `send.sh`, `run.sh`, …
+- `printer/`  — printer control: `printflow.py`, `print_job.py`, `camera.py`, `send.sh`, `run.sh`, …
 - `print.sh` — one-command driver: validate → slice → (optional) print
 - `skills/model/SKILL.md` — the agent skill that ties it together (read this first)
 - `skills/dev-container/` — `dc` helper + skill to run a remote-control Claude agent in a dev

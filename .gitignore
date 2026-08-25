@@ -21,11 +21,10 @@ cad/fonts/*.otf
 slice/profiles/
 
 # Local printer/runtime state
-bambu/loaded.json
-bambu/snapshot.jpg
+printer/loaded.json
+printer/snapshot.jpg
 
 # Secrets / local config — never commit
 *.env
 *.key
 id_*
-*printer*

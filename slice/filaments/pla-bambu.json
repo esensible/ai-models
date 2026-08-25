@@ -1,0 +1,12 @@
+{
+  "display": "Bambu PLA Basic",
+  "type": "PLA",
+  "profiles": {
+    "0.4": "Bambu PLA Basic @BBL X1C",
+    "0.6": "Bambu PLA Basic @BBL X1C"
+  },
+  "plates": ["Cool Plate", "Textured PEI Plate", "Engineering Plate", "Smooth PEI Plate"],
+  "default_plate": "Textured PEI Plate",
+  "overrides": {},
+  "notes": "Ported from the old slice/materials.json PLA entry; stock profile."
+}

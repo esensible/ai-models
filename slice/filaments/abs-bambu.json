@@ -1,0 +1,12 @@
+{
+  "display": "Bambu ABS",
+  "type": "ABS",
+  "profiles": {
+    "0.4": "Bambu ABS @BBL X1C",
+    "0.6": "Bambu ABS @BBL X1C"
+  },
+  "plates": ["Textured PEI Plate", "Engineering Plate", "High Temp Plate"],
+  "default_plate": "Textured PEI Plate",
+  "overrides": {},
+  "notes": "Ported from the old slice/materials.json ABS entry; stock profile."
+}

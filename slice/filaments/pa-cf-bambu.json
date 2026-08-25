@@ -1,0 +1,11 @@
+{
+  "display": "Bambu PA-CF (carbon-fibre nylon) — for the dual_pdm casing",
+  "type": "PA-CF",
+  "profiles": {
+    "0.4": "Bambu PA-CF @BBL X1C"
+  },
+  "plates": ["Textured PEI Plate", "Engineering Plate", "High Temp Plate"],
+  "default_plate": "Engineering Plate",
+  "overrides": {},
+  "notes": "UNTESTED on this printer — stock profile as a starting point; expect tuning after the first print. Hard requirements: hardened nozzle (installed), filament MUST be dried before printing (PA is far more hygroscopic than PETG; wet PA-CF = foamy weak parts), and keep the door closed for chamber warmth. No 0.6 entry yet: verify the Orca profile name for 0.6 before adding. If the actual spool is another brand, make a separate file — do not reuse this one."
+}

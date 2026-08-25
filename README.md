@@ -48,7 +48,7 @@ rendering works with no display attached.
 
 ## Slicing & printing
 
-The `slice/` and `bambu/` directories take a model from STL to a print on a Bambu Lab P1S,
+The `slice/` and `printer/` directories take a model from STL to a print on a Bambu Lab P1S,
 headless and LAN-only (no cloud).
 
 - **`slice/slice.sh`** — slice an STL into a printable `.gcode.3mf` with OrcaSlicer. Handles
@@ -58,14 +58,14 @@ headless and LAN-only (no cloud).
   *single-nozzle* printer: slice the letters and the surrounding face separately, then splice
   the G-code so the letters print first, a filament-swap pause fires, and the face prints
   around them — all in layer 1. `repack_gcode_3mf.py` rewrites the `.gcode.3mf` (and its md5).
-- **`bambu/`** — talk to the printer over LAN: live status (`run.sh`), chamber camera,
+- **`printer/`** — talk to the printer over LAN: live status (`run.sh`), chamber camera,
   FTPS upload + MQTT print start (`send.sh`). Credentials (host / access code / serial) are
-  read from `bambu/printer.env`, which is **git-ignored and never committed**.
+  loaded from `$BAMBU_ENV_FILE` — the `printer` volume in the dev container, never the repo.
 - **`print.sh`** — one command: validate against live printer/material state, slice, summarise,
   and (with `--print`) start the job.
 
-Printer host/access-code/serial live only in `bambu/printer.env` (create it locally; see
-`bambu/README.md`). Nothing printer-identifying beyond the model name is committed.
+Printer host/access-code/serial live in the `printer` named volume (see
+`printer/README.md`) — not in the repo or on the host. Nothing printer-identifying is committed.
 
 ## Notes
 

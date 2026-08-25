@@ -1,0 +1,18 @@
+{
+  "display": "Overture PETG, white, external spool",
+  "type": "PETG",
+  "profiles": {
+    "0.4": "Bambu PETG Basic @BBL X1C",
+    "0.6": "Bambu PETG Basic @BBL X1C"
+  },
+  "plates": ["Textured PEI Plate", "Engineering Plate", "High Temp Plate"],
+  "default_plate": "Textured PEI Plate",
+  "overrides": {
+    "flow_ratio": 0.94,
+    "first_layer_speed_scale": 0.5,
+    "bed_temp_first_layer": 90,
+    "bed_ramp_per_layer": [85, 80, 75, 70],
+    "preheat_hold_min": 10
+  },
+  "notes": "Recipe validated 2026-08-24 on the four_bolt_adaptor print after four consecutive first-layer failures on the stock profile (wispy non-adhering extrusion). This spool is far less forgiving than Bambu PETG: it needs a 10min 90C bed soak, 90C held through a half-speed first layer, then a 5C/layer ramp down to 70, and flow 0.94. Same numbers previously worked for gridfinity prints on this spool (user's recollection, now confirmed)."
+}

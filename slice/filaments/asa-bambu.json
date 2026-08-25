@@ -1,0 +1,12 @@
+{
+  "display": "Bambu ASA",
+  "type": "ASA",
+  "profiles": {
+    "0.4": "Bambu ASA @BBL X1C",
+    "0.6": "Bambu ASA @BBL X1C"
+  },
+  "plates": ["Textured PEI Plate", "Engineering Plate", "High Temp Plate"],
+  "default_plate": "Textured PEI Plate",
+  "overrides": {},
+  "notes": "Ported from the old slice/materials.json ASA entry; stock profile."
+}

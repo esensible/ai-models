@@ -1,0 +1,11 @@
+{
+  "_comment": "Nozzle diameter -> OrcaSlicer machine + process profile names for the P1S. The installed nozzle is USER-DECLARED in printer/loaded.json (the printer's own nozzle_diameter report is screen-entered and untrusted, like its filament report). Names verified against the Orca BBL profile tree; verify before adding new rows.",
+  "0.4": {
+    "machine": "Bambu Lab P1S 0.4 nozzle",
+    "process": "0.20mm Standard @BBL X1C"
+  },
+  "0.6": {
+    "machine": "Bambu Lab P1S 0.6 nozzle",
+    "process": "0.30mm Standard @BBL X1C 0.6 nozzle"
+  }
+}

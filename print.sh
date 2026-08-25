@@ -3,9 +3,11 @@
 #   ./print.sh model.stl              # validate + slice + summary (does NOT print)
 #   ./print.sh model.stl --print      # ...and start the print
 #   ./print.sh model.stl --material PLA --plate "Cool Plate"
-# See bambu/loaded.json (recorded plate/filament) and slice/materials.json (profiles).
+# See printer/loaded.json (user-declared filament/plate/nozzle) and
+# slice/filaments/ (per-filament profiles + overrides).
 # Requires `uv` (https://github.com/astral-sh/uv).
 set -euo pipefail
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-[ -f "$WS/bambu/printer.env" ] && set -a && . "$WS/bambu/printer.env" && set +a
-exec uv run "$WS/bambu/printflow.py" "$@"
+BAMBU_ENV_FILE="${BAMBU_ENV_FILE:-$WS/printer/printer.env}"
+[ -f "$BAMBU_ENV_FILE" ] && set -a && . "$BAMBU_ENV_FILE" && set +a
+exec uv run "$WS/printer/printflow.py" "$@"

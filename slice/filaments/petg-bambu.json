@@ -1,0 +1,12 @@
+{
+  "display": "Bambu PETG Basic",
+  "type": "PETG",
+  "profiles": {
+    "0.4": "Bambu PETG Basic @BBL X1C",
+    "0.6": "Bambu PETG Basic @BBL X1C"
+  },
+  "plates": ["Textured PEI Plate", "Engineering Plate", "High Temp Plate"],
+  "default_plate": "Textured PEI Plate",
+  "overrides": {},
+  "notes": "Stock profile as-is; this filament has printed fine without tuning (much more forgiving than the Overture spool)."
+}

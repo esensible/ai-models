@@ -52,12 +52,17 @@ class ImplicitFTP_TLS(ftplib.FTP_TLS):
         return self.voidresp()
 
 
-def ftps_upload(host, code, local, remote):
+def _ftps(host, code):
     ctx = ssl._create_unverified_context()  # printer cert is self-signed
     ftp = ImplicitFTP_TLS(context=ctx)
     ftp.connect(host, 990, timeout=30)
     ftp.login("bblp", code)
     ftp.prot_p()
+    return ftp
+
+
+def ftps_upload(host, code, local, remote):
+    ftp = _ftps(host, code)
     size = os.path.getsize(local)
     with open(local, "rb") as fh:
         ftp.storbinary(f"STOR {remote}", fh)
@@ -65,6 +70,31 @@ def ftps_upload(host, code, local, remote):
     names = ftp.nlst()
     ftp.quit()
     return size, (remote in names or ("/" + remote) in names)
+
+
+def ftps_list(host, code):
+    ftp = _ftps(host, code)
+    lines = []
+    ftp.retrlines("LIST", lines.append)
+    ftp.quit()
+    return lines
+
+
+def ftps_fetch(host, code, remote, local):
+    # retrbinary analogue of the storbinary above: Bambu's server never answers
+    # the TLS close_notify, so skip the unwrap after the data.
+    ftp = _ftps(host, code)
+    ftp.voidcmd("TYPE I")
+    with open(local, "wb") as fh:
+        with ftp.transfercmd(f"RETR {remote}") as conn:
+            while True:
+                data = conn.recv(8192)
+                if not data:
+                    break
+                fh.write(data)
+        ftp.voidresp()
+    ftp.quit()
+    return os.path.getsize(local)
 
 
 def mqtt_client(host, code):
@@ -148,6 +178,8 @@ def main():
     ap.add_argument("file", nargs="?", help="local .gcode.3mf to send")
     ap.add_argument("--print", dest="do_print", action="store_true", help="start the print after upload")
     ap.add_argument("--status", action="store_true", help="just show printer filament/state")
+    ap.add_argument("--list", dest="do_list", action="store_true", help="list the SD card root")
+    ap.add_argument("--fetch", nargs=2, metavar=("REMOTE", "LOCAL"), help="download a file from the SD card")
     ap.add_argument("--remote", help="remote filename (default: basename of file)")
     ap.add_argument("--name", help="subtask name shown on printer")
     ap.add_argument("--use-ams", action="store_true")
@@ -161,9 +193,20 @@ def main():
     if args.status:
         p = get_status(host, code, serial)
         print(f"gcode_state: {p.get('gcode_state')}")
-        print("filament:")
+        print("filament (printer-reported — advisory only, trust loaded.json):")
         for line in summarize_filament(p):
             print("  " + line)
+        return 0
+
+    if args.do_list:
+        for line in ftps_list(host, code):
+            print(line)
+        return 0
+
+    if args.fetch:
+        remote, local = args.fetch
+        n = ftps_fetch(host, code, remote, local)
+        print(f"fetched {remote} -> {local} ({n} bytes)")
         return 0
 
     if not args.file:

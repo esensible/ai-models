@@ -19,13 +19,22 @@ OUTDIR="$(cd "$(dirname "$STL")" && pwd)"
 export HOME="$WS/cad/.home"; export XDG_CONFIG_HOME="$HOME/.config"; mkdir -p "$HOME"
 PROF="$SLICE/profiles"; mkdir -p "$PROF"
 
-# Filament profile is overridable to match what's loaded (FILAMENT env var).
+# Profiles are overridable to match the loaded filament and installed nozzle
+# (FILAMENT / MACHINE / PROCESS env vars; see slice/nozzles.json for the
+# machine+process pairs per nozzle diameter).
 FILAMENT="${FILAMENT:-Bambu PLA Basic @BBL X1C}"
+MACHINE="${MACHINE:-Bambu Lab P1S 0.4 nozzle}"
+PROCESS="${PROCESS:-0.20mm Standard @BBL X1C}"
 echo "[slice] filament: $FILAMENT"
-# (Re)build flattened profiles for P1S 0.4 + 0.20mm Standard + chosen filament.
-python3 "$SLICE/flatten_profile.py" "Bambu Lab P1S 0.4 nozzle"      "$PROF/machine.json"  >/dev/null
-python3 "$SLICE/flatten_profile.py" "0.20mm Standard @BBL X1C"      "$PROF/process.json"  >/dev/null
-python3 "$SLICE/flatten_profile.py" "$FILAMENT"                     "$PROF/filament.json" >/dev/null
+echo "[slice] machine:  $MACHINE"
+echo "[slice] process:  $PROCESS"
+python3 "$SLICE/flatten_profile.py" "$MACHINE"   "$PROF/machine.json"  >/dev/null
+python3 "$SLICE/flatten_profile.py" "$PROCESS"   "$PROF/process.json"  >/dev/null
+python3 "$SLICE/flatten_profile.py" "$FILAMENT"  "$PROF/filament.json" >/dev/null
+
+# A stale output must never masquerade as a fresh slice: if the slicer dies,
+# the pre-existing file would pass the exists-check below (bit us 2026-08-24).
+rm -f "$OUTDIR/$OUT_NAME"
 
 # Bed/plate type must support the filament (PETG needs Textured PEI, not Cool Plate).
 BED="${BED:-Textured PEI Plate}"
@@ -38,9 +47,19 @@ BRIM="${BRIM:-}"
 # doesn't drag strings over visible features. See slice/merge_twocolor.py.
 AVOID_CROSSING="${AVOID_CROSSING:-}"
 [ -n "$AVOID_CROSSING" ] && echo "[slice] avoid crossing walls: on"
-python3 - "$PROF/machine.json" "$PROF/process.json" "$BED" "$BRIM" "$AVOID_CROSSING" <<'PY'
+# FLOW_RATIO: override filament_flow_ratio (all entries).
+# BED_TEMP: set the bed temp for the CHOSEN plate type, first layer AND rest
+#   (per-layer ramps are a post-processing job; see slice/inject_bed_ramp.py).
+# FIRST_SPEED_SCALE: multiply initial_layer_speed / initial_layer_infill_speed.
+FLOW_RATIO="${FLOW_RATIO:-}"
+BED_TEMP="${BED_TEMP:-}"
+FIRST_SPEED_SCALE="${FIRST_SPEED_SCALE:-}"
+[ -n "$FLOW_RATIO" ] && echo "[slice] flow ratio: $FLOW_RATIO"
+[ -n "$BED_TEMP" ] && echo "[slice] bed temp override: ${BED_TEMP}C (first layer + rest)"
+[ -n "$FIRST_SPEED_SCALE" ] && echo "[slice] first-layer speed scale: $FIRST_SPEED_SCALE"
+python3 - "$PROF/machine.json" "$PROF/process.json" "$PROF/filament.json" "$BED" "$BRIM" "$AVOID_CROSSING" "$FLOW_RATIO" "$BED_TEMP" "$FIRST_SPEED_SCALE" <<'PY'
 import json,sys
-mach,proc,bed,brim,avoid=sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5]
+mach,proc,fil,bed,brim,avoid,flow,bedtemp,flscale=sys.argv[1:10]
 for f in (mach,proc):
     d=json.load(open(f)); d["curr_bed_type"]=bed; json.dump(d,open(f,"w"),indent=1)
 if brim:
@@ -48,6 +67,24 @@ if brim:
     d["brim_object_gap"]="0.1"; json.dump(d,open(proc,"w"),indent=1)
 if avoid:
     d=json.load(open(proc)); d["reduce_crossing_wall"]="1"; d["max_travel_detour_distance"]="0"
+    json.dump(d,open(proc,"w"),indent=1)
+if flow:
+    d=json.load(open(fil)); v=d["filament_flow_ratio"]
+    d["filament_flow_ratio"]=[flow]*len(v) if isinstance(v,list) else flow
+    json.dump(d,open(fil,"w"),indent=1)
+if bedtemp:
+    key={"Textured PEI Plate":"textured_plate_temp","Cool Plate":"cool_plate_temp",
+         "Engineering Plate":"eng_plate_temp","High Temp Plate":"hot_plate_temp",
+         "Smooth PEI Plate":"hot_plate_temp"}[bed]
+    d=json.load(open(fil))
+    for k in (key,key+"_initial_layer"):
+        v=d.get(k); d[k]=[bedtemp]*len(v) if isinstance(v,list) else bedtemp
+    json.dump(d,open(fil,"w"),indent=1)
+if flscale:
+    d=json.load(open(proc)); s=float(flscale)
+    for k in ("initial_layer_speed","initial_layer_infill_speed"):
+        v=d[k]
+        d[k]=[str(float(x)*s) for x in v] if isinstance(v,list) else str(float(v)*s)
     json.dump(d,open(proc,"w"),indent=1)
 PY
 
