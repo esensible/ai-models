@@ -10,15 +10,22 @@
     "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
     "mounts": [
         // uv wheel cache — keeps cad/setup.sh's large OCP wheel install fast across rebuilds.
-        "type=volume,source=ai_models_uv_cache,target=/root/.cache",
+        "type=volume,source=dot_cache,target=/root/.cache",
         // Claude Code onboarding/trust/login state (see CLAUDE_CONFIG_DIR below).
-        "type=volume,source=ai_models_dot_claude,target=/root/.claude",
+        "type=volume,source=dot_claude,target=/root/.claude",
+        // Printer creds (BAMBU_HOST/CODE/SERIAL in printer.env) — kept in a named
+        // volume, NOT in the repo or on the host. Survives restart/rebuild. Seed with:
+        //   podman run --rm -i -v printer:/v IMAGE -c 'cat > /v/printer.env'
+        "type=volume,source=printer,target=/root/.config/ai-models",
         "type=bind,source=${localEnv:HOME}/.ssh,target=/root/.ssh,readonly"
     ],
     "containerEnv": {
         // Persist ~/.claude.json in the dot_claude volume so container rebuilds don't
         // re-run interactive onboarding (same trick as the silvin devcontainers).
-        "CLAUDE_CONFIG_DIR": "/root/.claude"
+        "CLAUDE_CONFIG_DIR": "/root/.claude",
+        // Where the printer/ wrappers load creds from (the printer volume above),
+        // instead of the in-repo printer/printer.env fallback.
+        "BAMBU_ENV_FILE": "/root/.config/ai-models/printer.env"
     },
     "remoteUser": "root"
 }

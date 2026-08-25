@@ -22,6 +22,12 @@ ENV PYOPENGL_PLATFORM=osmesa
 #   touches them; without libXrender the import dies (XRenderFindVisualFormat on None).
 #   (silvin-dev happened to have these via playwright's chromium deps — why it "worked" there.)
 # git: build123d is pulled from a git branch by cad/setup.sh.
+# libwebkit2gtk-4.1-0: OrcaSlicer 2.4.x AppRun does a preflight check for host
+#   WebKitGTK 4.1 (libwebkit2gtk-4.1.so.0 / libjavascriptcoregtk-4.1.so.0) and
+#   refuses to run without it — the AppImage does not bundle it. Pulls GTK3/soup.
+# libsm6 + libice6: the only two libs the extracted OrcaSlicer binary still needs
+#   from the host (X session-management) — everything else is bundled in
+#   /opt/squashfs-root/lib/orca-runtime or comes via the GTK/webkit stack above.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
@@ -46,8 +52,11 @@ RUN apt-get update && \
         libxi6 \
         libxrandr2 \
         libxxf86vm1 \
+        libsm6 \
+        libice6 \
         libgomp1 \
-        fontconfig && \
+        fontconfig \
+        libwebkit2gtk-4.1-0 && \
     rm -rf /var/lib/apt/lists/*
 
 # --- uv — builds the cad/ venv at runtime (cad/setup.sh) --------------------
@@ -61,22 +70,35 @@ RUN pip3 install --break-system-packages paho-mqtt
 RUN curl -fsSL https://claude.ai/install.sh | bash
 ENV PATH="/root/.local/bin:${PATH}"
 
-# --- OrcaSlicer 2.3.2 (STAGED — not yet installed) -------------------------
-# arm64 OrcaSlicer ships ONLY as a Flatpak:
-#   OrcaSlicer-Linux-flatpak_V2.3.2_aarch64.flatpak
-# (upstream provides no arm64 AppImage — the x86_64 AppImage won't run here).
-# Running a Flatpak'd CLI app headless inside a container needs flatpak + the
-# flathub runtime + a working bubblewrap sandbox, which is finicky under rootless
-# podman. slice/slice.sh calls `orca-slicer`, so this layer must end with an
-# `orca-slicer` on PATH (a wrapper around `flatpak run …`, or an extracted binary).
-# Deferred until validated end-to-end so a flaky slicer layer can't break the
-# rest of the image. Tracking: needs flatpak install of the aarch64 bundle.
+# --- OrcaSlicer (aarch64 AppImage, extracted) ------------------------------
+# ARM64 Linux binary — NOT x86. Since v2.4.x upstream ships an aarch64 AppImage
+# built on Ubuntu 24.04 (matches this base image); at 2.3.2 arm64 was
+# Flatpak-only, which is why this layer used to be deferred. We EXTRACT the
+# AppImage (no FUSE / no bubblewrap sandbox needed) to /opt/squashfs-root and
+# symlink `orca-slicer` onto PATH — the bare command slice/slice.sh calls. This
+# mirrors the proven prior (OpenClaw workspace) setup.
+# NOTE: this bumps the slicer 2.3.2 -> 2.4.2; slice/slice.sh's CLI workarounds
+# (flatten `inherits`, strip extruder-variant fields) should be re-validated on
+# a test slice.
+ARG ORCA_VERSION=2.4.2
+RUN set -eux; \
+    case "$(uname -m)" in \
+      aarch64|arm64) ORCA_ARCH=aarch64 ;; \
+      *) echo "OrcaSlicer layer requires an arm64 build host (got $(uname -m)); refusing to install an x86 binary" >&2; exit 1 ;; \
+    esac; \
+    wget -q "https://github.com/SoftFever/OrcaSlicer/releases/download/v${ORCA_VERSION}/OrcaSlicer_Linux_AppImage_Ubuntu2404_${ORCA_ARCH}_V${ORCA_VERSION}.AppImage" -O /tmp/orca.AppImage; \
+    chmod +x /tmp/orca.AppImage; \
+    ( cd /opt && /tmp/orca.AppImage --appimage-extract >/dev/null ); \
+    ln -s /opt/squashfs-root/AppRun /usr/local/bin/orca-slicer; \
+    rm /tmp/orca.AppImage; \
+    test -x /opt/squashfs-root/AppRun
 
 # Verify the core toolchain built.
 RUN python3 --version && \
     uv --version && \
     python3 -c "import paho.mqtt.client" && \
     claude --version && \
+    command -v orca-slicer && \
     dpkg -s libosmesa6 >/dev/null
 
 ENTRYPOINT ["bash"]
