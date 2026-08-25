@@ -23,3 +23,6 @@ scikit-learn
 
 # fast mesh booleans (island bridging, hole punching)
 manifold3d
+
+# rectangle packing for models/gridfinity/tap_bins.py super-block layout
+rectpack
