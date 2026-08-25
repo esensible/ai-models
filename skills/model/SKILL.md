@@ -68,6 +68,23 @@ filament (type AND brand) and installed nozzle always come from Andrew.**
 - `slice/nozzles.json` = nozzle diameter → machine/process profile names.
 - Always confirm the loaded filament with Andrew before slicing.
 
+## Print log — learn across prints (`printer/prints.jsonl`)
+Two layers, don't conflate them:
+- **Raw corpus** = `printer/prints.jsonl`, append-only, one JSON object per print,
+  **committed** (text → clean diffs, merge-friendly; SQLite/DuckDB are only query
+  lenses, never the store). `printflow.py` appends a row automatically at print
+  start with everything deterministic (unix `ts`, `git_commit`+`git_dirty`, part,
+  `config`/`brand`/`material_type`, nozzle, plate, placement, brim, soak min/temp,
+  ramp, est time/mass, footprint). Judgment fields start null — fill them after:
+  `printer/print_log.py annotate --outcome success --ambient <C> [--note "..."]`
+  (updates the most recent row; `--outcome fail:<mode>` e.g. `fail:warp`).
+  Query: `printer/print_log.py query "SELECT ... FROM prints WHERE brand='Overture'"`
+  (SQL over the JSONL; scalars are real columns). `brand` and `material_type` are
+  stored separately so "is all Overture hard, or just the PETG?" is one query.
+- **Distilled lessons** = what we act on. A pattern that recurs in the corpus
+  graduates into the relevant `slice/filaments/*.json` `notes`/`overrides` (how the
+  Overture recipe got captured). Corpus = evidence; filament configs = the fix.
+
 ## Monitoring every print (STANDING RULE)
 **Monitor EVERY print for failure — even ones Andrew starts himself — and alert him.** `print-monitor` cron (every 5 min, main session): if RUNNING, grab a chamber frame, inspect for spaghetti / detached-shifted part / blobs / nozzle gunk; on failure **alert Andrew on WhatsApp** (+61466717319) with what + layer, offer to pause/stop. Healthy → silent. **Never pause/stop without his say-so.**
 
@@ -86,7 +103,7 @@ The container rootfs is ephemeral. `/home/node/.openclaw/workspace/setup/provisi
 ## Key files (all under `ai-models/`)
 - Model/preview: `cad/run.sh`, `cad/setup.sh`, `cad/models/*.py`, `cad/render.py`, `cad/requirements.txt`
 - Slice: `slice/slice.sh`, `slice/flatten_profile.py`, `slice/filaments/`, `slice/nozzles.json`, `slice/place_stl.py`, `slice/inject_bed_ramp.py`, `slice/verify_gcode.py`, `slice/repack_gcode_3mf.py`
-- Print: `print.sh` → `printer/printflow.py`; `printer/send.sh` → `printer/print_job.py`; `printer/camera.py`; `printer/gcode_send.py`; `printer/loaded.json`; creds in the `printer` volume (`$BAMBU_ENV_FILE`)
+- Print: `print.sh` → `printer/printflow.py`; `printer/send.sh` → `printer/print_job.py`; `printer/camera.py`; `printer/gcode_send.py`; `printer/loaded.json`; `printer/print_log.py` + `printer/prints.jsonl`; creds in the `printer` volume (`$BAMBU_ENV_FILE`)
 
 ## Proven
 2026-06-07: 10/6/10mm tube modelled + previewed + printed (PETG, Textured PEI), headless slice → upload → print → camera-confirmed. Bed-clear gate caught a leftover part on a re-print attempt.

@@ -15,8 +15,10 @@ here, minus `.json`, uppercased by convention in conversation).
 ```json
 {
   "display":       "human name, brand + colour",
-  "type":          "PETG",            // material family; used only to warn if
-                                      // the printer's vt_tray disagrees
+  "brand":         "Overture",        // manufacturer; logged per-print so we can
+                                      // ask "is all Overture hard, or just PETG?"
+  "type":          "PETG",            // material family; used to warn if the
+                                      // printer's vt_tray disagrees, and logged
   "profiles":      {"0.4": "<OrcaSlicer filament profile name>",
                     "0.6": "..."},    // per nozzle diameter; verify the name
                                       // exists under the Orca BBL tree before

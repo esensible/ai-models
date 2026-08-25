@@ -1,5 +1,6 @@
 {
   "display": "Bambu TPU 95A",
+  "brand": "Bambu",
   "type": "TPU",
   "profiles": {
     "0.4": "Bambu TPU 95A @BBL X1C"

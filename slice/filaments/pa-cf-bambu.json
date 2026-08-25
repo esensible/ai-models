@@ -1,5 +1,6 @@
 {
   "display": "Bambu PA-CF (carbon-fibre nylon) — for the dual_pdm casing",
+  "brand": "Bambu",
   "type": "PA-CF",
   "profiles": {
     "0.4": "Bambu PA-CF @BBL X1C"

@@ -35,6 +35,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -42,6 +43,7 @@ WS = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 import print_job as pj    # ftps_upload / start_print / get_status
 import camera             # camera.grab
+import print_log          # append() the per-print JSONL record
 
 
 def load_json(path):
@@ -53,6 +55,26 @@ def run(cmd, **kw):
     r = subprocess.run(cmd, **kw)
     if r.returncode != 0:
         sys.exit(f"step failed ({cmd[0]}): exit {r.returncode}")
+
+
+def git_state():
+    """Current commit + whether the tree is dirty. A clean commit reproduces
+    the print; dirty means the committed source alone does not."""
+    def g(*a):
+        return subprocess.run(["git", "-C", WS, *a], capture_output=True,
+                              text=True).stdout.strip()
+    try:
+        return g("rev-parse", "HEAD") or None, bool(g("status", "--porcelain"))
+    except Exception:
+        return None, None
+
+
+def footprint(threemf):
+    try:
+        with zipfile.ZipFile(threemf) as z:
+            return json.loads(z.read("Metadata/plate_1.json")).get("bbox_all")
+    except Exception:
+        return None
 
 
 def gcode_summary(threemf):
@@ -208,6 +230,29 @@ def main():
     pj.start_print(host, code, serial, remote, name, use_ams=loaded.get("ams", False),
                    bed="textured_plate" if "Textured" in plate else "auto")
     print(f"✓ print '{name}' started.")
+
+    # --- log the print (JSONL corpus; judgment fields left blank) -------------
+    commit, dirty = git_state()
+    placement = (f"center:{args.center[0]:g},{args.center[1]:g}" if args.center
+                 else f"back-ymax:{args.back_ymax:g}" if args.back_ymax is not None
+                 else "arrange")
+    print_log.append({
+        "ts": int(time.time()),
+        "part": os.path.splitext(os.path.basename(args.model))[0],
+        "git_commit": commit, "git_dirty": dirty,
+        "config": material, "brand": fil.get("brand"), "material_type": fil["type"],
+        "nozzle": noz_d, "plate": plate,
+        "placement": placement, "brim": args.brim,
+        "soak_min": ov.get("preheat_hold_min"),
+        "soak_temp": ov.get("bed_temp_first_layer"),
+        "bed_ramp": ov.get("bed_ramp_per_layer"),
+        "flow_ratio": ov.get("flow_ratio"),
+        "est_time": g.get("time"), "grams": g.get("grams"),
+        "footprint": footprint(out_3mf),
+        "ambient_c": None, "outcome": None, "observations": None,
+    })
+    print("  logged to printer/prints.jsonl — annotate after: "
+          "print_log.py annotate --outcome success --ambient <C>")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 {
   "display": "Bambu PETG Basic",
+  "brand": "Bambu",
   "type": "PETG",
   "profiles": {
     "0.4": "Bambu PETG Basic @BBL X1C",
