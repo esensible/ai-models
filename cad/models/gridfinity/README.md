@@ -19,8 +19,9 @@ exports land in `cad/out/` prefixed `gridfinity_`.
   8 mm recess.
 - `tap_bin.py` — pair of side-by-side bins (combined 6×5) holding 35 taps,
   top-tangent aligned pockets, floor/wall labels, standard-pitch highlight
-  rings. Reads `tap_sizes.csv` (RECONSTRUCTED — see the file's docstring;
-  the M18×1.5 length is an estimate).
+  rings. Reads `tap_sizes.csv` (measured data, lost in the migration and
+  deliberately NOT reconstructed — the script fails hard until the taps are
+  remeasured; columns `Size,Pitch,Length` in mm).
 - `tap_bins.py` — earlier rectpack-packed 5×5 variant of the tap storage
   (three bins, super-blocks per diameter). Kept for reference/re-print;
   needs `rectpack` (in cad/requirements.txt).

@@ -2,12 +2,12 @@
 
 Holds 35 unique threaded taps loaded from tap_sizes.csv (next to this file).
 
-CSV provenance: the original /workspace/tap-sizes.csv did not survive the
-migration from github.com/esensible/gridfinity (it lived outside that repo).
-The bundled tap_sizes.csv is RECONSTRUCTED from tap_bins.py's GROUPS table +
-tap_length() (34 taps) plus M18x1.5, whose presence this file's own comments
-attest (SINGLE_LINE_OVERRIDES, STANDARD_PITCHES note) — its 100mm length is an
-ESTIMATE. If the original CSV resurfaces, replace the file and re-run.
+tap_sizes.csv is MEASURED DATA and is intentionally NOT in the repo: the
+original (/workspace/tap-sizes.csv) did not survive the migration from
+github.com/esensible/gridfinity, and reconstructed/estimated dimensions must
+never masquerade as measurements. This script FAILS HARD if the file is
+missing — remeasure the taps (columns: Size,Pitch,Length in mm) and recreate
+it before building.
 
 Layout:
 - Sort by (size, pitch).
@@ -95,6 +95,11 @@ H_INTER_GAP = 1.0
 
 
 def load_taps():
+    if not os.path.exists(CSV_PATH):
+        raise FileNotFoundError(
+            f"{CSV_PATH} is missing. This is MEASURED tap data (Size,Pitch,Length "
+            f"in mm) lost in the repo migration — remeasure the physical taps and "
+            f"recreate the file. Do NOT reconstruct it from other sources.")
     taps = []
     with open(CSV_PATH) as f:
         for row in csv.DictReader(f):
