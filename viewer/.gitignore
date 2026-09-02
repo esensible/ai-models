@@ -1,0 +1,15 @@
+# deps / venvs
+node_modules/
+.venv/
+
+# build output
+dist/
+*.zip
+
+# caches
+.ruff_cache/
+__pycache__/
+*.pyc
+
+# pulumi locals
+Pulumi.*.yaml.bak

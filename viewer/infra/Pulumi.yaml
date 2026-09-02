@@ -1,0 +1,3 @@
+name: ai-models-viewer
+runtime: nodejs
+description: 3MF viewer — S3 + DynamoDB index + WebSocket directory service + CloudFront SPA.

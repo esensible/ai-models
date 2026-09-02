@@ -1,0 +1,14 @@
+{
+  "name": "ai-models-viewer-infra",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "^5.5"
+  },
+  "dependencies": {
+    "@pulumi/aws": "^6.50",
+    "@pulumi/pulumi": "^3.130"
+  }
+}

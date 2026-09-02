@@ -1,0 +1,7 @@
+config:
+  aws:region: ap-southeast-2
+  viewer:namePrefix: ai-models-viewer
+  viewer:presignTtl: "900"
+  viewer:authDisabled: "false"
+  # API token is a secret — set it (don't commit plaintext):
+  #   pulumi config set --secret viewer:apiToken <token>
