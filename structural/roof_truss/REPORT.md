@@ -34,7 +34,7 @@ collar is squeezed between them. It only becomes a tension tie when the walls
 spread, which the joists prevent. Unbraced over 3.9 m in its weak direction
 k12 ≈ 0.01. Two intermediate lateral restraints (ceiling battens or a runner at
 third points) bring it to about 1.0; the under-purlins restrain the collar *ends*
-only. The lap carries 3.4 kN — ~12 nails each end or a bolt.
+only. The lap carries up to 4.4 kN (with wind down) — ~13 nails each end or a bolt.
 
 **Ceiling joists.** The thrust (2.4 kN per truss) goes into the joists as
 tension, which they carry easily (9 % of capacity); the rafter-foot connection
