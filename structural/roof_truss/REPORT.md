@@ -60,29 +60,34 @@ the purlin's flexibility.
 
 ## What would make it work
 
-1. **Make the under-purlins real beams.** Over a 3.6 m bay carrying three
-   trusses they need to be **45×190 F7** (1.02, as near as makes no difference)
-   or **45×240** (0.83). An alternative that keeps the 35×105 purlins is a strut
-   from each purlin down to the hanging beam at every truss, which is the
-   "rigidly propped" row — the hanging beam then needs checking for ~3 kN per
-   strut (2 kN uplift, tie them down).
-2. **Rafters 35×140 F7** (0.96) once the purlins are stiff; 35×105 stays 1.35×
-   even with perfect props because of the 1.4 kN maintenance point load on the
-   2.57 m lower segment.
-3. **Collar tie**: with stiff purlins it drops to 0.23 and is fine as is. If the
-   purlins stay soft, brace it laterally at third points (1.03) — ceiling
-   battens won't reach it at 1.2 m above the ceiling, so a runner.
-4. **Joists**: fine with the hanging beams; keep them at or inside quarter span.
-5. **Ridge beam 40×190**: passes at 0.95, with no margin. Its bearing on each
-   interior cross wall carries 3.9 kN.
-6. The rafter feet still push 2.4 kN per truss into the joists — keep the
-   foot connection as a nailed or bolted tension splice.
+Upsizing one member at a time (everything else as built, 35×105 F7):
 
-Section sweep, as built, all 35×105 members changed together (rafter / collar /
-purlin / joist): 35×105 1.75 / 8.6 / 3.7 / 1.08 · 35×140 0.97 / 6.5 / 2.7 / 0.72 ·
-45×140 0.73 / 3.2 / 1.5 / 0.45 · 45×190 0.40 / 2.3 / 1.02 / 0.29 · 45×240 0.27 /
-1.7 / 0.83 / 0.21. Note the collar never passes by section alone in this
-geometry; it needs stiff purlins or lateral bracing.
+| Change | Rafter | Collar | Purlin | Comment |
+|---|---|---|---|---|
+| none (as built) | 1.75 | 8.6 | 3.7 | |
+| rafters 35×140 only | 1.04 | 8.6 | 3.1 | stiffer rafters attract load; purlin eases a little, collar unchanged |
+| rafters 45×190 only | 0.59 | 8.5 | 2.1 | same story, more so |
+| purlins 45×190 only | 1.57 | 7.0 | 1.18 | purlins pass; they are still not stiff enough to relieve the collar |
+| purlins 45×240 + rafters 35×140 | 0.87 | 5.5 | 0.96 | even a 45×240 purlin over 3.6 m is far from a rigid prop |
+| collar braced at third points only | 1.75 | 1.02 | 3.7 | collar fixed, nothing else |
+
+So stronger rafters are the smallest part of the fix, and no practical purlin
+makes the collar's compression go away. The collar needs its own fix. A
+complete package that passes everything:
+
+- **Under-purlins 45×190 F7** (1.15 with the stiffer rafters; 45×240 gives
+  0.96) — or keep 35×105 and strut each purlin down to the hanging beam at
+  every truss, then check the hanging beams for ~3 kN per strut.
+- **Rafters 35×140 F7** (0.90). 35×105 stays over because of the 1.4 kN
+  maintenance point load on the 2.57 m lower segment.
+- **Collar tie laterally braced at third points** (0.86) — a runner along the
+  building nailed to the collars, since ceiling battens are 1.2 m below. A
+  doubled collar (two 35×105 bolted together) with one mid-length restraint
+  also works (0.48).
+- Joists as they are, with the hanging beams at or inside quarter span (1.07).
+- Ridge beam 40×190 as it is (0.61 once the purlins carry their share).
+- Keep the rafter-foot-to-joist connection as a nailed or bolted tension
+  splice for 2.4 kN per truss.
 
 ## Sensitivities
 
