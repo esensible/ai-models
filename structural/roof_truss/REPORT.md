@@ -108,6 +108,25 @@ hanging beam, or a 45×240 replacement. Lamination fixings: nail the plies
 together at ≤ 600 mm staggered so they buckle as one; the plies share bending
 without needing composite action.
 
+## If the under-purlins are treated as lateral bracing only
+
+Doubled rafters and collars, under-purlins carrying no vertical load (modelled
+with negligible stiffness), ridge on the cross walls:
+
+| Member | Times over | Note |
+|---|---|---|
+| Rafters 70×105 | 1.10 | 1.4 kN maintenance point load on the 2.57 m lower segment, no prop |
+| Collar 70×105 with a mid-length runner | 0.53 | without the runner 1.07 |
+| Ridge 40×190 | 1.09 | now carries 5.2 kN onto each interior cross wall; doubled (80×190) → 0.34 |
+| Joists with hanging beams | 1.09 | unchanged |
+
+Three members sit about 10 % over. That is inside the uncertainty of the
+assumptions (φ = 0.70 for visually graded F7; select-grade F8 Oregon would put
+all three under 1.0), but it is not a pass on paper. Doubling the ridge as well
+is the one that is cheap and clearly settles it; the rafter and joist margins
+either need the under-purlin prop, a 35×140 second ply on the rafters, or the
+grade confirmed as F8.
+
 ## Sensitivities
 
 - **Wind.** N1 as confirmed. Wind now only governs the purlins (asymmetric
