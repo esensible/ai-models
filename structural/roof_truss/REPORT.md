@@ -84,13 +84,29 @@ Section sweep, as built (rafter / collar / joist):
 
 Section sweep, purlins strutted (rafter): 35×105 **1.35** · 35×140 0.79 · 45×140 0.59 · 35×190 0.56.
 
-## Not yet modelled
+## Hanging beams under the ceiling (190–240 deep, on top of the joists)
 
-"Additional transverse rafters" — awaiting clarification of what they are and
-what they bear on. If they are common rafters between the trusses carried by
-the under-purlins, the trusses pick up their load at the collar node and the
-rafter and collar results above get worse, and the purlin needs checking as a
-beam spanning 1200 between trusses.
+The deep beams running between the trusses on top of the joists are hanging
+beams: they pick the joists up between the walls. What they do depends only on
+the joist span they leave (`--joist-props`):
+
+| Joist supports (wall + hanging beams) | Joist span | Joist times-over | Long-term sag (limit span/300) |
+|---|---|---|---|
+| mid wall only | 4.25 m | **3.8** | 31 mm (14) |
+| wall + one beam each side (quarter points) | 2.1 m | 1.08 (borderline, conservative restraint assumption) | 2.3 mm (7) |
+| wall + two beams each side | 1.4 m | 0.62 | 0.5 mm (5) |
+
+So with a hanging beam in each half, placed roughly mid-way between the mid wall
+and the outer wall, **35×105 joists pass**. The beams' own ends must land on
+something (end walls, the mid wall, or posts); the joists must be strapped to
+them; and the beams themselves are not checked here (their span is unknown).
+
+They do nothing for the rafters or the collar, which still fail as above —
+**unless the beams also act as strutting beams**: struts from the beams up to
+the under-purlins turn them into the supports that route B needs. That is the
+cheapest fix on the table — a 190–240 deep Oregon beam may well carry the
+3.0 kN strut reaction per truss (2.6 kN uplift) on top of the ceiling, but it
+needs the beam's span and bearing to check, and the struts need tying down.
 
 ## Sensitivities worth knowing
 
