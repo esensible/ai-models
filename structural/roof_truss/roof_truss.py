@@ -82,6 +82,11 @@ class RoofGrillage:
         self.a = a
         self.sec = Section(*a.section)
         self.sec_ridge = Section(*a.ridge) if a.ridge else None
+        self.secs = {"rafter": Section(*a.rafter_section) if a.rafter_section else self.sec,
+                     "collar": Section(*a.collar_section) if a.collar_section else self.sec,
+                     "tie": Section(*a.joist_section) if a.joist_section else self.sec,
+                     "purlin": Section(*a.purlin_section) if a.purlin_section else self.sec,
+                     "ridge": self.sec_ridge}
         self.grade = GRADES[a.grade]
         th = math.radians(a.pitch)
         self.th = th
@@ -120,7 +125,7 @@ class RoofGrillage:
         if a.bay > 0:
             for side in ("L", "R"):
                 self._build_runner([(t["y"], t["collar_" + side]) for t in self.trusses],
-                                   self.yc, self.sec, "purlin", f"under-purlin {side}",
+                                   self.yc, self.secs["purlin"], "purlin", f"under-purlin {side}",
                                    self.purlin_elems, self.purlin_wall_nodes)
             if self.sec_ridge:
                 self._build_runner([(t["y"], t["apex"]) for t in self.trusses],
@@ -131,7 +136,10 @@ class RoofGrillage:
     # --- one truss in the X-Z plane --------------------------------------------
     def _build_truss(self, y: float) -> dict:
         a, fr = self.a, self.fr
-        E, A, I = self.grade["E"], self.sec.A, self.sec.I
+        E = self.grade["E"]
+        A, I = self.secs["rafter"].A, self.secs["rafter"].I
+        Ac, Ic = self.secs["collar"].A, self.secs["collar"].I
+        At, It = self.secs["tie"].A, self.secs["tie"].I
         half, rise, yc, xc = a.span / 2, self.rise, self.yc, self.xc
         n1, n2 = self.n1, self.n2
         t = dict(y=y, rafter=[], collar=None, tie=[], props=[])
@@ -152,7 +160,7 @@ class RoofGrillage:
         for i in range(len(nR) - 1):
             seg = "upper" if i < n2 else "lower"
             t["rafter"].append(fr.beam(nR[i], nR[i + 1], E, A, I, rR[i], rR[i + 1], "rafter", f"rafter R {seg}"))
-        t["collar"] = fr.beam(t["collar_L"], t["collar_R"], E, A, I, fr.new_rot(), fr.new_rot(),
+        t["collar"] = fr.beam(t["collar_L"], t["collar_R"], E, Ac, Ic, fr.new_rot(), fr.new_rot(),
                               "collar", "collar tie")
         fr.fix(t["wall_L"], "x", "y")
         if a.support == "pinned":
@@ -164,7 +172,7 @@ class RoofGrillage:
                 tn = [t["wall_L"]] + [fr.node(a.span * k / nt, 0) for k in range(1, nt)] + [t["wall_R"]]
                 rots = [fr.new_rot() for _ in tn]
                 for i in range(nt):
-                    t["tie"].append(fr.beam(tn[i], tn[i + 1], E, A, I, rots[i], rots[i + 1], "tie", "ceiling joist"))
+                    t["tie"].append(fr.beam(tn[i], tn[i + 1], E, At, It, rots[i], rots[i + 1], "tie", "ceiling joist"))
                 t["tie_nodes"] = tn
                 if a.joist_props:
                     if nt % (a.joist_props + 1):
@@ -203,8 +211,7 @@ class RoofGrillage:
         sp, kpa = a.spacing, 1e-3
         G, Q, Qp, Qc = LoadCase("G"), LoadCase("Q"), LoadCase("Qp"), LoadCase("Qc")
         for idx, e in enumerate(fr.elements):
-            sec = self.sec_ridge if e.group == "ridge" else self.sec
-            G.w_v[idx] = -a.density * 9.81e-9 * sec.A           # self weight
+            G.w_v[idx] = -a.density * 9.81e-9 * self.secs[e.group].A   # self weight
         for t in self.trusses:
             for idx in t["rafter"]:
                 G.w_v[idx] -= a.g_roof * kpa * sp                   # sheeting+battens on slope area
@@ -249,7 +256,7 @@ class RoofGrillage:
         rows = []
         for idx, e in enumerate(fr.elements):
             L = fr.length(e)
-            sec = self.sec_ridge if e.group == "ridge" else self.sec
+            sec = self.secs[e.group]
             if e.group == "rafter":
                 seg = self.L_lower if "lower" in e.tag else self.L_upper
                 r = dict(Lay_sag=min(a.battens, seg), Lay_hog=seg, Lax_c=seg, Lay_c=min(a.battens, seg))
@@ -521,6 +528,10 @@ def parse(argv=None):
     g.add_argument("--collar-drop", type=float, default=1000, help="collar tie below the apex (vertical)")
     g.add_argument("--section", type=parse_section, default=(35, 105), help="b x d of rafters/collar/joists/purlins")
     g.add_argument("--ridge", type=parse_section, default=(40, 190), help="ridge beam b x d; '' for none")
+    g.add_argument("--rafter-section", type=parse_section, default=None, help="override for rafters only")
+    g.add_argument("--collar-section", type=parse_section, default=None)
+    g.add_argument("--joist-section", type=parse_section, default=None)
+    g.add_argument("--purlin-section", type=parse_section, default=None)
     g.add_argument("--bay", type=float, default=3600, help="cross-wall spacing supporting purlins + ridge (3 trusses per bay, walls mid-way between trusses); 0 = none")
     g.add_argument("--bays", type=int, default=3, help="bays modelled (results reported for the middle one)")
     g.add_argument("--truss-offset", type=float, default=600, help="first truss from the first cross wall")
