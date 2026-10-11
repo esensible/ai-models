@@ -63,14 +63,14 @@ work (station actions, envelopes, utilisation, report tables) is polars.
 | Concentrated live `--q-point` | 1.4 kN | mid lower-rafter segment (worst position) |
 | Ceiling lining `--ceiling` | 0.12 kPa on plan | plasterboard + battens, on the joists |
 | Ceiling concentrated `--qc-point` | 0.9 kN | mid first joist span (AS 1684 ceiling-joist basis) |
-| Wind uplift `--wind-up` | −0.8 kPa net, both slopes | indicative N2 (q_u 0.96 kPa, leeward C_pe −0.6, C_pi +0.2) |
-| Wind down `--wind-down` | +0.6 kPa net, both slopes | conservative |
-| Wind asymmetric `--wind-asym` | +0.5 / −0.8 kPa | windward pressure with internal suction, leeward uplift; **governs** |
-| Serviceability wind `--ws-ratio` | 0.42 × ultimate | (26/40)² |
+| Wind uplift `--wind-up` | −0.58 kPa net, both slopes | N1, suburban Adelaide (q_u 0.69 kPa, leeward C_pe −0.6, C_pi +0.2); N2 = −0.8 |
+| Wind down `--wind-down` | +0.43 kPa net, both slopes | conservative; N2 = 0.6 |
+| Wind asymmetric `--wind-asym` | +0.36 / −0.58 kPa | windward pressure with internal suction, leeward uplift; N2 = 0.5 / −0.8 |
+| Serviceability wind `--ws-ratio` | 0.58 × ultimate | (26/34)² |
 
 Combinations: 1.35G · 1.2G+1.5Q · 1.2G+1.5Q_point · 1.2G+1.5Q_ceiling · 1.2G+W_down · 0.9G+W_up ·
 1.2G+W_asym · 0.9G+W_asym. Serviceability: G long-term (×j₂ = 3, unseasoned),
-0.7Q, W_s. Site wind class N3 scales all wind pressures by (50/40)² ≈ 1.56.
+0.7Q, W_s. Wind class N2 scales all wind pressures by (40/34)² ≈ 1.39, N3 by 2.16.
 
 ## Timber checks (AS 1720.1)
 

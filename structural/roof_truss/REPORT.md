@@ -16,9 +16,9 @@ members fail, each on its own:
 
 | Member | Governing case | Times over capacity | Why |
 |---|---|---|---|
-| **Collar tie** | dead + wind down | **8.5×** | it is pushed into *compression* (5.8 kN) as the rafters bow inward, and 3.9 m of unbraced 35 mm timber buckles sideways |
+| **Collar tie** | dead + roof live load (no wind needed) | **8.0×** | it is pushed into *compression* (3.4 kN) as the rafters bow inward, and 3.9 m of unbraced 35 mm timber buckles sideways |
 | **Ceiling joist** (4.25 m spans over the wall) | dead + 0.9 kN ceiling point load | **3.8×**, sags 31 mm (limit 14) | 1.39 kNm demand vs 0.37 kNm capacity; top edge unrestrained over 4.25 m |
-| **Rafter** | dead + asymmetric wind | **3.6×** | pressure on one slope and suction on the other bend the whole frame; the collar carries only horizontal force and can't help |
+| **Rafter** | dead + asymmetric wind (N1) | **2.7×** | pressure on one slope and suction on the other bend the whole frame; the collar carries only horizontal force and can't help. Without any wind, the 1.4 kN maintenance point load alone gives **2.2×** |
 
 The wall under the joists is essential (without it the joists are 25× over and
 sag over a metre) and the joists tying the feet are essential (without them the
@@ -32,28 +32,28 @@ Deflections pass wherever strength passes (rafter 4.6 mm long-term against a
 **Collar tie.** With the feet tied, gravity makes both rafters bow inward and the
 collar is squeezed between them. It only becomes a tension tie when the walls
 spread, which the joists prevent. Unbraced over 3.9 m in its weak direction
-k12 ≈ 0.02. Two intermediate lateral restraints (ceiling battens or a runner at
-third points) bring it to 1.00; the under-purlins restrain the collar *ends*
-only. Under asymmetric wind it sees 6.6 kN tension — the lap needs ~20 nails
-each end or bolts.
+k12 ≈ 0.01. Two intermediate lateral restraints (ceiling battens or a runner at
+third points) bring it to about 1.0; the under-purlins restrain the collar *ends*
+only. The lap carries 3.4 kN — ~12 nails each end or a bolt.
 
-**Ceiling joists.** The thrust (3.4 kN per truss) goes into the joists as
-tension, which they carry easily (12 % of capacity); the rafter-foot connection
-needs to be nailed or bolted as a 3.4 kN tension splice. The bending from the
+**Ceiling joists.** The thrust (2.4 kN per truss) goes into the joists as
+tension, which they carry easily (9 % of capacity); the rafter-foot connection
+needs to be nailed or bolted as a 2.4 kN tension splice. The bending from the
 ceiling over two 4.25 m spans is the problem: 35×105 ceiling joists at 1200 c/c
 want supports at roughly 1.5 m, or a deeper section (45×190 F7 is 1.0).
 
 **Rafters.** With the feet tied, the two rafters form a three-pin arch.
 Symmetric loads are carried by arch action and the rafter moments are small
 (~0.1 kNm dead load). Asymmetric wind can only be resisted by bending the
-rafters: 2.2 kNm against a 0.62 kNm capacity, checked by hand statics. A
-45×190 F7 rafter (0.90) survives this case; 35×140 does not (2.4×).
+rafters: 1.6 kNm against a 0.62 kNm capacity at N1 (2.2 kNm at N2, checked by
+hand statics). Even with no wind the 1.4 kN concentrated roof live load gives
+1.4 kNm on the 2.57 m lower segment. A 45×190 F7 rafter (0.67) survives;
+45×140 is marginal (1.07); 35×140 does not (1.8×).
 
 ## What would make it work
 
-**A. Keep the geometry, resize members:** rafters ≥ 45×190 F7, collar
-restrained at third points, joists 45×190 F7 (1.0) or 45×240 (0.8). A lot of
-timber.
+**A. Keep the geometry, resize members:** rafters 45×190 F7, collar restrained
+at third points, joists carried by the hanging beams. A lot of timber.
 
 **B. Strut the under-purlins down to a load-bearing wall or strutting beam**
 (what AS 1684 assumes an under-purlin does). That makes the rafters continuous
@@ -62,25 +62,25 @@ and drops the collar to 1 kN (0.23, 3 nails each end). Then:
 - rafters at 1200 c/c need **35×140 F7** (0.79, governed by the 1.4 kN
   concentrated roof live load on the 2.57 m lower segment); 35×105 is 1.35.
   Or keep 35×105 with a second purlin line so no rafter span exceeds ~1.5 m.
-- struts at every truss (3.0 kN per strut, 2.6 kN uplift — tie them down); a
+- struts at every truss (3.0 kN per strut, ~2 kN uplift — tie them down); a
   35×105 purlin can't carry a strut reaction across 2.4 m.
 - joists still need a deeper section or closer supports as above.
 
-Either way the thrust goes into the joists (3.4 kN per truss) — keep the foot
+Either way the thrust goes into the joists (2.4 kN per truss) — keep the foot
 connection.
 
 ## Results matrix (35×105 F7, times over capacity; > 1.0 fails)
 
 | Configuration | Rafter | Collar | Joist | Joist sag (long-term) |
 |---|---|---|---|---|
-| **As built**: joists tie feet, wall under joists, purlins as bracing | **3.6** | **8.5** | **3.8** | 31 mm (limit 14) |
+| **As built**: joists tie feet, wall under joists, purlins as bracing | **2.7** | **8.0** | **3.8** | 31 mm (limit 14) |
 | Same, under-purlins strutted | **1.35** | 0.23 | **3.7** | 31 mm |
-| No wall under the joists | **3.6** | **8.5** | **25** | 1252 mm |
-| No joists, walls resist 5.7 kN thrust | **3.6** | **8.5** | – | – |
-| No joists, walls can't resist thrust | **8.3** | **7.4** | – | spreads 540 mm |
+| No wall under the joists | **2.7** | **8.0** | **25** | 1252 mm |
+| No joists, walls resist 4 kN thrust | **2.7** | **8.0** | – | – |
+| No joists, walls can't resist thrust | **6.8** | **4.9** | – | spreads ~400 mm |
 
-Section sweep, as built (rafter / collar / joist):
-35×105 3.6 / 8.5 / 3.8 · 45×140 1.5 / 3.1 / 1.4 · 45×190 **0.90** / 2.3 / **1.0** · 45×240 0.65 / 1.8 / 0.8.
+Section sweep, as built (rafter / collar / joist, joists on the mid wall only):
+35×105 2.7 / 8.0 / 3.8 · 45×140 1.07 / 2.9 / 1.4 · 45×190 **0.67** / 2.2 / **1.0** · 45×240 0.48 / 1.8 / 0.8.
 
 Section sweep, purlins strutted (rafter): 35×105 **1.35** · 35×140 0.79 · 45×140 0.59 · 35×190 0.56.
 
@@ -105,15 +105,18 @@ They do nothing for the rafters or the collar, which still fail as above —
 **unless the beams also act as strutting beams**: struts from the beams up to
 the under-purlins turn them into the supports that route B needs. That is the
 cheapest fix on the table — a 190–240 deep Oregon beam may well carry the
-3.0 kN strut reaction per truss (2.6 kN uplift) on top of the ceiling, but it
+3.0 kN strut reaction per truss (~2 kN uplift) on top of the ceiling, but it
 needs the beam's span and bearing to check, and the struts need tying down.
 
 ## Sensitivities worth knowing
 
-- **Wind class.** Defaults are indicative N2 pressures. N3 multiplies wind
-  results by ~1.56; N1 by ~0.72. The asymmetric case (+0.5 / −0.8 kPa) assumes
-  internal suction with windward pressure (a building with openings); a sealed
-  building is nearer +0.1 / −0.8, cutting the rafter moment ~15 %.
+- **Wind class.** Defaults are N1 (suburban Adelaide, region A, fully
+  shielded, terrain category 3). A partly shielded or exposed site is N2:
+  multiply wind results by ~1.39 (rafter 3.6×, collar still gravity-governed).
+  The asymmetric case (+0.36 / −0.58 kPa) assumes internal suction with
+  windward pressure (openings); a sealed building is nearer +0.07 / −0.58, and
+  then the rafter is governed by the point load instead (2.2×). Wind is not
+  what fails this roof.
 - **Grade.** F8 (select Oregon) raises capacities ~20 %; F5 lowers them ~22 %.
 - **φ.** 0.70 is the visually-graded F-grade, category-2 value; 0.85 (in-grade
   tested products such as MGP) scales utilisations by 0.82.

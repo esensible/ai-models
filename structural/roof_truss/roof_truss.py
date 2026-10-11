@@ -575,11 +575,12 @@ def parse(argv=None):
     l.add_argument("--qc-point", type=float, default=900, help="N, concentrated load on a ceiling joist (AS 1684 basis)")
     l.add_argument("--q-roof", type=float, default=0.25, help="roof live load on plan (R2, ≥14 m2)")
     l.add_argument("--q-point", type=float, default=1400, help="N, concentrated roof live load")
-    l.add_argument("--wind-up", type=float, default=-0.8, help="net ULS pressure onto roof, both slopes (N2 indicative)")
-    l.add_argument("--wind-down", type=float, default=0.6)
-    l.add_argument("--wind-asym", type=lambda s: tuple(float(v) for v in s.split(",")), default=(0.5, -0.8),
-                   help="windward,leeward net pressures")
-    l.add_argument("--ws-ratio", type=float, default=0.42, help="serviceability/ultimate wind pressure ratio")
+    l.add_argument("--wind-up", type=float, default=-0.58,
+                   help="net ULS pressure onto roof, both slopes (N1 suburban Adelaide; N2 = -0.8)")
+    l.add_argument("--wind-down", type=float, default=0.43, help="(N2 = 0.6)")
+    l.add_argument("--wind-asym", type=lambda s: tuple(float(v) for v in s.split(",")), default=(0.36, -0.58),
+                   help="windward,leeward net pressures (N2 = 0.5,-0.8)")
+    l.add_argument("--ws-ratio", type=float, default=0.58, help="serviceability/ultimate wind pressure ratio (N1)")
     o = ap.add_argument_group("output")
     o.add_argument("--all", action="store_true", help="run the support matrix + section sweep")
     o.add_argument("--plots", action="store_true")
