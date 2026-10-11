@@ -22,15 +22,19 @@ allv = np.vstack([m.vertices for m in meshes.values()])
 lo, hi = allv.min(0), allv.max(0)
 ctr, rng = (lo + hi) / 2, (hi - lo).max() / 2
 
-fig = plt.figure(figsize=(16, 7.5))
-views = [(28, -55, "isometric: X across span, Y along building"),
+# one collection for everything so matplotlib depth-sorts faces across members
+faces, colors = [], []
+for k, m in meshes.items():
+    faces.append(m.vertices[m.faces]); colors += [COL[k]] * len(m.faces)
+faces = np.concatenate(faces)
+
+fig = plt.figure(figsize=(16, 8))
+views = [(22, -60, "isometric: X across span, Y along building"),
          (0, -90, "end elevation (looking along the building)")]
 for i, (elev, azim, title) in enumerate(views):
     ax = fig.add_subplot(1, 2, i + 1, projection="3d")
-    for k, m in meshes.items():
-        pc = Poly3DCollection(m.vertices[m.faces], facecolor=COL[k], edgecolor="k",
-                              linewidths=0.15, alpha=0.5 if k == "wall" else 1.0)
-        ax.add_collection3d(pc)
+    pc = Poly3DCollection(faces, facecolors=colors, edgecolor="k", linewidths=0.15)
+    ax.add_collection3d(pc)
     ax.set_xlim(ctr[0] - rng, ctr[0] + rng); ax.set_ylim(ctr[1] - rng, ctr[1] + rng)
     ax.set_zlim(ctr[2] - rng * 0.6, ctr[2] + rng * 0.6)
     ax.set_box_aspect((1, 1, 0.6))
