@@ -1,7 +1,8 @@
 # Roof truss structural analysis
 
 Indicative structural analysis of a coupled-rafter roof "truss" — two rafters,
-ceiling joists tying the rafter feet (and carrying a ceiling), a collar tie, and
+ceiling joists tying the rafter feet (carrying a ceiling, supported mid-span by
+a wall), a collar tie, and
 transverse under-purlins at the collar node tying the trusses together —
 spanning 8.5 m between wall supports at 27° pitch, trusses at 1200 c/c, all
 members 35×105 Oregon, corrugated iron roof. Results and recommendations are in
@@ -46,8 +47,8 @@ work (station actions, envelopes, utilisation, report tables) is polars.
   - `tie` *(default)* — ceiling joists (same section, continuous, 12 elements)
     at wall-plate level, pinned to the rafter feet, carrying `--ceiling` and a
     `--qc-point` concentrated load. `--joist-props N` props them at N equally
-    spaced points (1 = mid-span wall/hanging beam, 2 = third points, 3 = quarter
-    points). Joist top edge restrained only at props; bottom edge by ceiling
+    spaced points (default 1 = the mid-span wall; 2 = third points, 3 = quarter
+    points; 0 = unsupported). Joist top edge restrained only at props; bottom edge by ceiling
     battens (`--ceiling-battens` 450).
   - `pinned` — no joists; both walls resist the horizontal thrust. The reported
     `|H|` is what each wall must take.
@@ -87,7 +88,9 @@ Combinations: 1.35G · 1.2G+1.5Q · 1.2G+1.5Q_point · 1.2G+1.5Q_ceiling · 1.2G
   propped span.
 - Checks per station: bending, shear, combined bending + compression
   (cl 3.5.1, both expressions), bending + tension (cl 3.5.2). `util` is the
-  worst demand/capacity ratio; > 1.0 fails.
+  worst demand/capacity ratio; > 1.0 fails. Once M*/Md exceeds 1 the squared
+  interaction term is replaced by the linear ratio so "times over" stays
+  readable.
 - Collar-tie connection: rough 3.15 mm nail count from Table 4.1(B) J4 values
   (φ 0.80, k17 for multiple nails). Bolts to be designed separately.
 

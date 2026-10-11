@@ -310,8 +310,11 @@ class RoofTruss:
         df = df.with_columns([
             Mr.alias("u_bend"),
             (pl.col("V").abs() / pl.col("Vd")).alias("u_shear"),
-            # cl 3.5.1 combined bending + compression (both expressions), cl 3.5.2 bending + tension
-            pl.max_horizontal(Mr ** 2 + Nc / pl.col("Ncy"), Mr + Nc / pl.col("Ncx")).alias("u_comb_c"),
+            # cl 3.5.1 combined bending + compression (both expressions), cl 3.5.2 bending + tension.
+            # The squared term is only meaningful near unity; once M*/Md > 1 the member has failed,
+            # so report the linear ratio there to keep "how far over" readable.
+            pl.max_horizontal(pl.when(Mr > 1).then(Mr).otherwise(Mr ** 2) + Nc / pl.col("Ncy"),
+                              Mr + Nc / pl.col("Ncx")).alias("u_comb_c"),
             (Mr + Ntn / pl.col("Nt")).alias("u_comb_t"),
         ]).with_columns(
             pl.max_horizontal("u_bend", "u_shear", "u_comb_c", "u_comb_t").alias("util")
@@ -551,7 +554,7 @@ def parse(argv=None):
     g.add_argument("--support", choices=["pinned", "roller", "tie"], default="tie",
                    help="tie: ceiling joists (same section) tie the rafter feet [default]; "
                         "pinned: both walls resist thrust; roller: one wall free to spread")
-    g.add_argument("--joist-props", type=int, default=0,
+    g.add_argument("--joist-props", type=int, default=1,
                    help="intermediate vertical supports under the ceiling joists (internal wall / "
                         "hanging beam): 1 = mid-span, 2 = third points, 3 = quarter points")
     g.add_argument("--ceiling-battens", type=float, default=450, help="ceiling batten spacing (joist bottom-edge restraint)")
@@ -602,10 +605,9 @@ def main(argv=None):
             print(md(summarise(r["df"])))
         return
     cases = [  # (support, strutted, joist props, title)
-        ("tie", False, 0, "ceiling joists tie the feet, joists unsupported, purlins not strutted"),
-        ("tie", False, 1, "ceiling joists tie the feet, joists propped mid-span, purlins not strutted"),
-        ("tie", True, 1, "ceiling joists propped mid-span + under-purlins strutted"),
-        ("tie", True, 2, "ceiling joists propped at third points + under-purlins strutted"),
+        ("tie", False, 1, "as built: joists tie the feet, wall under joists mid-span, purlins as bracing"),
+        ("tie", True, 1, "what-if: same + under-purlins strutted down to a wall/beam"),
+        ("tie", False, 0, "what-if: no wall under the joists"),
         ("pinned", False, 0, "no joists: walls resist thrust"),
         ("roller", False, 0, "no joists: one wall free to spread"),
     ]
