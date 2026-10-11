@@ -521,7 +521,7 @@ def parse(argv=None):
     g.add_argument("--collar-drop", type=float, default=1000, help="collar tie below the apex (vertical)")
     g.add_argument("--section", type=parse_section, default=(35, 105), help="b x d of rafters/collar/joists/purlins")
     g.add_argument("--ridge", type=parse_section, default=(40, 190), help="ridge beam b x d; '' for none")
-    g.add_argument("--bay", type=float, default=4000, help="cross-wall spacing supporting purlins + ridge; 0 = none (purlins bracing only)")
+    g.add_argument("--bay", type=float, default=3600, help="cross-wall spacing supporting purlins + ridge (3 trusses per bay, walls mid-way between trusses); 0 = none")
     g.add_argument("--bays", type=int, default=3, help="bays modelled (results reported for the middle one)")
     g.add_argument("--truss-offset", type=float, default=600, help="first truss from the first cross wall")
     g.add_argument("--support", choices=["pinned", "roller", "tie"], default="tie",
@@ -571,7 +571,7 @@ def main(argv=None):
         print(run_one(a, "as built", plots_dir=plots, tag="asbuilt")["text"])
         return
     cases = [
-        (dict(), "as built: purlins + 40x190 ridge on cross walls @ 4 m, joists on mid wall + hanging beams", "asbuilt"),
+        (dict(), "as built: purlins + 40x190 ridge on cross walls @ 3.6 m (mid-way between trusses), joists on mid wall + hanging beams", "asbuilt"),
         (dict(joist_props=1), "what-if: joists on the mid wall only (no hanging beams)", "nobeams"),
         (dict(ridge=None), "what-if: no ridge beam", "noridge"),
         (dict(bay=0.0, bays=1), "what-if: purlins as bracing only (no cross walls)", "nowalls"),

@@ -3,7 +3,7 @@
 Indicative structural analysis of a coupled-rafter roof — rafters, ceiling
 joists tying the rafter feet (carrying a ceiling, on a mid wall and hanging
 beams), a collar tie, under-purlins and a ridge beam bearing on cross walls
-every ~4 m — spanning 8.5 m between wall supports at 27° pitch, trusses at
+mid-way between trusses (3.6 m bays) — spanning 8.5 m between wall supports at 27° pitch, trusses at
 1200 c/c, 35×105 Oregon (ridge 40×190), corrugated iron roof, suburban
 Adelaide (N1). Results and recommendations are in [`REPORT.md`](REPORT.md);
 the full generated tables are in [`report/analysis.md`](report/analysis.md).
@@ -32,7 +32,7 @@ work (station actions, envelopes, utilisation, report tables) is polars.
 
 ## What is modelled
 
-A grillage: `--bays` (3) bays of `--bay` (4000) between cross walls, with
+A grillage: `--bays` (3) bays of `--bay` (3600) between cross walls, with
 trusses every `--spacing` (1200) starting `--truss-offset` (600) from the first
 wall. Each truss is a 2D frame in its own X-Z plane; the two under-purlins and
 the ridge beam are continuous 2D beams in the Y-Z plane, supported vertically on
