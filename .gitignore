@@ -28,3 +28,6 @@ printer/snapshot.jpg
 *.env
 *.key
 id_*
+
+# Structural analysis report figures are deliverables, not build output
+!structural/**/report/*.png

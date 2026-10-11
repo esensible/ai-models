@@ -17,6 +17,8 @@ printer control over MQTT/FTPS.
 - `printer/` — P1S LAN control: status, chamber camera, g-code, FTPS/MQTT
   send, and the print driver (`printflow.py`).
 - `print.sh` — the one-command front door to the print driver.
+- `structural/` — structural analysis (not CAD): `roof_truss/` is a parametric
+  2D frame model with AS 1720.1 timber checks; see its `README.md` / `REPORT.md`.
 - `skills/model/SKILL.md` — **the operational runbook for agents**: modelling
   conventions, slice/print gotchas, safety rules. Read it before doing
   anything non-trivial; it is the detail this README deliberately omits.
