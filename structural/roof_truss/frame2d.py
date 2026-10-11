@@ -62,6 +62,7 @@ class Frame:
         self.nodes: list[tuple[float, float]] = []
         self.elements: list[Element] = []
         self.fixed: set[tuple[int, str]] = set()   # (node, 'x'|'y')
+        self.links: list[tuple[int, int]] = []     # (slave dof, master dof): equal displacement
         self._nrot = 0
 
     # --- model building -------------------------------------------------
@@ -80,6 +81,12 @@ class Frame:
     def fix(self, node: int, *dirs: str):
         for d in dirs:
             self.fixed.add((node, d))
+
+    def link(self, slave: int, master: int, d: str):
+        """Make node `slave`'s displacement in direction d equal node `master`'s.
+        This is how elements in different planes (a grillage) share a DOF."""
+        k = 0 if d == 'x' else 1
+        self.links.append((2 * slave + k, 2 * master + k))
 
     # --- geometry helpers ------------------------------------------------
     def length(self, e: Element) -> float:
@@ -134,21 +141,28 @@ class Frame:
         ndof = nt + self._nrot
         K = np.zeros((ndof, ndof))
         F = np.zeros(ndof)
+        mp = np.arange(ndof)                      # dof -> master dof
+        for slave, master in self.links:
+            while mp[master] != master:
+                master = mp[master]
+            mp[slave] = master
+        mp = mp[mp]                               # resolve chains
         for idx, e in enumerate(self.elements):
             L = self.length(e)
             a = self.angle(e)
             T = self._T(np.cos(a), np.sin(a))
             k = T.T @ self._k_local(e, L) @ T
-            d = self.dofs(e)
-            K[np.ix_(d, d)] += k
+            d = mp[self.dofs(e)]
+            np.add.at(K, (d[:, None], d[None, :]), k)   # add.at: repeated ids accumulate
             p, q = self._local_udl(idx, lc)
             feq = np.array([p * L / 2, q * L / 2, q * L**2 / 12, p * L / 2, q * L / 2, -q * L**2 / 12])
-            F[d] += T.T @ feq
+            np.add.at(F, d, T.T @ feq)
         for n, (fx, fy) in lc.P.items():
-            F[2 * n] += fx
-            F[2 * n + 1] += fy
-        fixed = sorted({2 * n + (0 if d == 'x' else 1) for n, d in self.fixed})
-        free = [i for i in range(ndof) if i not in fixed]
+            F[mp[2 * n]] += fx
+            F[mp[2 * n + 1]] += fy
+        fixed = {mp[2 * n + (0 if d == 'x' else 1)] for n, d in self.fixed}
+        slaves = {i for i in range(ndof) if mp[i] != i}
+        free = [i for i in range(ndof) if i not in fixed and i not in slaves]
         u = np.zeros(ndof)
         Kff = K[np.ix_(free, free)]
         cond = np.linalg.cond(Kff)
@@ -156,6 +170,8 @@ class Frame:
             raise RuntimeError(f"stiffness matrix singular/ill-conditioned (cond={cond:.2e}): mechanism?")
         u[free] = np.linalg.solve(Kff, F[free])
         R = K @ u - F
+        u = u[mp]                                 # slaves follow their masters
+        R = R[mp]
         return Result(self, lc, u, R)
 
 

@@ -1,18 +1,17 @@
 # Roof truss structural analysis
 
-Indicative structural analysis of a coupled-rafter roof "truss" — two rafters,
-ceiling joists tying the rafter feet (carrying a ceiling, supported mid-span by
-a wall), a collar tie, and
-transverse under-purlins at the collar node tying the trusses together —
-spanning 8.5 m between wall supports at 27° pitch, trusses at 1200 c/c, all
-members 35×105 Oregon, corrugated iron roof. Results and recommendations are in
-[`REPORT.md`](REPORT.md); the full generated tables are in
-[`report/analysis.md`](report/analysis.md).
+Indicative structural analysis of a coupled-rafter roof — rafters, ceiling
+joists tying the rafter feet (carrying a ceiling, on a mid wall and hanging
+beams), a collar tie, under-purlins and a ridge beam bearing on cross walls
+every ~4 m — spanning 8.5 m between wall supports at 27° pitch, trusses at
+1200 c/c, 35×105 Oregon (ridge 40×190), corrugated iron roof, suburban
+Adelaide (N1). Results and recommendations are in [`REPORT.md`](REPORT.md);
+the full generated tables are in [`report/analysis.md`](report/analysis.md).
 
 **This is not a certified design.** It is a transparent, parametric model you can
-interrogate. Wind pressures, timber grade, capacity factor and restraint
-assumptions are command-line parameters — check them against the site wind
-class, the timber actually supplied and AS 1684 / AS 1720.1 before building.
+interrogate. Loads, grade, capacity factor and restraint assumptions are
+command-line parameters — check them against the timber actually supplied and
+AS 1684 / AS 1720.1 before building.
 
 ## Running it
 
@@ -20,39 +19,45 @@ class, the timber actually supplied and AS 1684 / AS 1720.1 before building.
 uv venv .venv && VIRTUAL_ENV=.venv uv pip install -r structural/roof_truss/requirements.txt
 .venv/bin/python structural/roof_truss/roof_truss.py            # default case
 .venv/bin/python structural/roof_truss/roof_truss.py --all --plots   # support matrix + section sweep + PNGs
-.venv/bin/python structural/roof_truss/roof_truss.py --joist-props 1 --strutted --section 35x140
+.venv/bin/python structural/roof_truss/roof_truss.py --bay 0                 # no cross walls
+.venv/bin/python structural/roof_truss/roof_truss.py --section 45x190 --ridge 40x190
 .venv/bin/python structural/roof_truss/roof_truss.py --help
 ```
 
 `frame2d.py` is a ~200-line 2D Euler–Bernoulli frame solver (direct stiffness,
-numpy for the linear solve only). `roof_truss.py` builds the frame, applies
+numpy for the linear solve only) with DOF linking so beams in different planes
+can share a displacement (the grillage coupling). `roof_truss.py` builds the frame, applies
 AS/NZS 1170 load combinations, and runs AS 1720.1 member checks; all the tabular
 work (station actions, envelopes, utilisation, report tables) is polars.
 
 ## What is modelled
 
-- **Geometry** (centreline): wall supports 8500 apart, rise = 4250·tan 27° =
-  2165 mm, rafter 4770 mm on slope. Collar tie 1000 mm (vertical) below the
-  apex → 3925 mm long, meeting the rafter 2567 mm up the slope from the wall.
+A grillage: `--bays` (3) bays of `--bay` (4000) between cross walls, with
+trusses every `--spacing` (1200) starting `--truss-offset` (600) from the first
+wall. Each truss is a 2D frame in its own X-Z plane; the two under-purlins and
+the ridge beam are continuous 2D beams in the Y-Z plane, supported vertically on
+every cross wall, and share their vertical displacement with the truss nodes
+they pass (collar nodes, apex). Results are reported for the truss nearest the
+middle of the middle bay.
+
+- **Geometry** (centreline): wall supports 8500 apart, rise 2165 mm, rafter
+  4770 mm on slope. Collar tie 1000 mm (vertical) below the apex → 3925 mm
+  long, meeting the rafter 2567 mm up the slope from the wall.
 - **Rafters**: continuous beam elements wall → collar node → apex, 6 elements
-  per segment. The two rafters are **hinged at the apex** (no ridge-beam
-  bending continuity).
-- **Collar tie**: beam element pinned both ends (nailed/bolted lap carries no
-  moment); it carries axial force and its own self-weight bending.
-- **Under-purlins**: run along the building at the collar node and tie the
-  trusses together. By default they are bracing only (lateral restraint of the
-  node, no vertical support). `--strutted` is the what-if where they are
-  strutted down to a wall / strutting beam and prop the collar node.
-- **Supports** (`--support`):
-  - `tie` *(default)* — ceiling joists (same section, continuous, 12 elements)
-    at wall-plate level, pinned to the rafter feet, carrying `--ceiling` and a
-    `--qc-point` concentrated load. `--joist-props N` props them at N equally
-    spaced points (default 1 = the mid-span wall; 2 = third points, 3 = quarter
-    points; 0 = unsupported). Joist top edge restrained only at props; bottom edge by ceiling
-    battens (`--ceiling-battens` 450).
-  - `pinned` — no joists; both walls resist the horizontal thrust. The reported
-    `|H|` is what each wall must take.
-  - `roller` — no joists and one wall free to spread.
+  per segment; the two rafters are hinged at the apex (no ridge-beam moment
+  continuity, but the ridge supports the apex vertically).
+- **Collar tie**: beam element pinned both ends (nailed/bolted lap); carries
+  axial force and its own self-weight bending.
+- **Ceiling joists** (`--support tie`, default): continuous 12-element beam at
+  plate level pinned to the rafter feet, carrying `--ceiling` and a `--qc-point`
+  load; `--joist-props N` props it at N equally spaced points (3 = mid wall +
+  hanging beams at quarter points, the default; 1 = mid wall only; 0 = none).
+  `pinned` / `roller` replace the joists with walls that do / don't resist thrust.
+- **Under-purlins** (same section): continuous beams along the building at the
+  collar node, supported on the cross walls. `--bay 0` removes the walls (purlins
+  become bracing only, trusses independent). `--strutted` is the what-if where
+  every collar node is rigidly propped.
+- **Ridge beam** (`--ridge` 40x190, `''` for none): same, at the apex.
 
 ## Loads (kN, m; AS/NZS 1170)
 
@@ -85,7 +90,7 @@ Combinations: 1.35G · 1.2G+1.5Q · 1.2G+1.5Q_point · 1.2G+1.5Q_ceiling · 1.2G
   or 1.0 (wind).
 - Compression: S3 = segment length / d, S4 = batten spacing / b for rafters;
   the collar uses its full length / (`--collar-restraints` + 1); joists their
-  propped span.
+  propped span; purlins/ridge the bay (top edge held by the rafters every 1200).
 - Checks per station: bending, shear, combined bending + compression
   (cl 3.5.1, both expressions), bending + tension (cl 3.5.2). `util` is the
   worst demand/capacity ratio; > 1.0 fails. Once M*/Md exceeds 1 the squared
@@ -100,5 +105,5 @@ Combinations: 1.35G · 1.2G+1.5Q · 1.2G+1.5Q_point · 1.2G+1.5Q_ceiling · 1.2G
   birdsmouth notch and ridge board ignored (the notch reduces capacity at the
   heel — a real design must check it).
 - No load sharing (k9 = 1.0) — at 1200 c/c the battens don't share much.
-- The under-purlin is not checked as a beam between struts; see REPORT.md.
+- Purlin/ridge bearing on the cross walls and the rafter-to-purlin fixings are not checked.
 - One truss-plane model: no bracing / longitudinal stability check.

@@ -5,9 +5,10 @@ mid-span), trusses at 1200 c/c — each a pair of 35x105 rafters at 27 deg,
 birdsmouthed onto the outer plates, a 35x105 ceiling joist lapped to the rafter
 feet running the full span over the mid wall, a 35x105 collar tie lapped to the
 rafters 1 m below the apex — plus 35x105 under-purlins along the building under
-the rafters just below the collar junction, and deep hanging beams along the
-building sitting on top of the joists, one in each half. Battens and roofing
-sheets are not drawn.
+the rafters just below the collar junction, a 40x190 ridge beam between the
+rafter plumb cuts, cross (room) walls every 4 m carrying the purlins and ridge,
+and deep hanging beams along the building sitting on top of the joists, one in
+each half. Battens and roofing sheets are not drawn.
 
   ./cad/run.sh cad/models/roof_truss/roof_truss.py            # -> cad/out/roof_truss.stl (+ per-member STLs)
   ./cad/run.sh cad/models/roof_truss/roof_truss.py --trusses 4 --beam 45x240
@@ -20,7 +21,10 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--span", type=float, default=8500, help="wall plate centres")
 ap.add_argument("--pitch", type=float, default=27)
 ap.add_argument("--spacing", type=float, default=1200, help="truss centres")
-ap.add_argument("--trusses", type=int, default=4)
+ap.add_argument("--trusses", type=int, default=None, help="default: as many as fit in --bays x --bay")
+ap.add_argument("--bay", type=float, default=4000, help="cross-wall spacing carrying the purlins + ridge (0 = none)")
+ap.add_argument("--bays", type=int, default=2)
+ap.add_argument("--ridge", default="40x190", help="ridge beam b x d ('' for none)")
 ap.add_argument("--section", default="35x105", help="b x d of rafters/joists/collar/purlins")
 ap.add_argument("--collar-drop", type=float, default=1000, help="collar top face below apex")
 ap.add_argument("--eave", type=float, default=450, help="horizontal eave overhang")
@@ -32,10 +36,12 @@ args = ap.parse_args()
 
 B, D = (float(v) for v in args.section.lower().split("x"))
 BB, BD = (float(v) for v in args.beam.lower().split("x"))
+RB, RD = (float(v) for v in args.ridge.lower().split("x")) if args.ridge else (0.0, 0.0)
 th = math.radians(args.pitch)
 tan, cos = math.tan(th), math.cos(th)
-S, N, SP = args.span, args.trusses, args.spacing
-L_bld = N * SP                       # building length drawn; trusses at SP/2, 3SP/2, ...
+S, SP = args.span, args.spacing
+L_bld = args.bays * args.bay if args.bay > 0 else (args.trusses or 4) * SP   # building length drawn
+N = args.trusses or int((L_bld - SP / 2) // SP) + 1                          # trusses at SP/2, 3SP/2, ...
 PLATE_B, PLATE_T = 105.0, 35.0       # wall plates laid flat
 WALL_T = 90.0
 
@@ -55,7 +61,8 @@ def box(x0_, x1_, y0_, y1_, z0_, z1_):
 def rafter_left(y):
     """left rafter, thickness B in Y starting at y, as a solid in X-Z."""
     xs = -args.eave
-    pts = [(xs, soffit(xs)), (x_c, soffit(x_c)), (x_c, soffit(x_c) + d_vert), (xs, soffit(xs) + d_vert)]
+    xe = x_c - RB / 2                 # plumb cut against the ridge beam
+    pts = [(xs, soffit(xs)), (xe, soffit(xe)), (xe, soffit(xe) + d_vert), (xs, soffit(xs) + d_vert)]
     with BuildPart() as p:
         with BuildSketch(Plane.XZ):
             Polygon(*pts, align=None)
@@ -103,6 +110,31 @@ x_p = x_cb - 20                             # purlin's uphill face a little down
 purlin = box(x_p - B, x_p, 0, L_bld, soffit(x_p) - D, soffit(x_p))
 add("purlin", purlin); add("purlin", mirror_x(purlin))
 
+# ---- ridge beam: on edge between the rafter plumb cuts, top at the rafter tops ------------
+if RB:
+    add("ridge", box(x_c - RB / 2, x_c + RB / 2, 0, L_bld, z_apex_top - RD, z_apex_top))
+
+# ---- cross walls (room walls across the building) under the purlins and ridge --------------
+if args.bay > 0:
+    with BuildPart() as _sp:          # region under the rafter soffits
+        with BuildSketch(Plane.XZ):
+            Polygon(*[(-args.eave, soffit(-args.eave)), (x_c, soffit(x_c)), (S + args.eave, soffit(-args.eave)),
+                      (S + args.eave, -2000), (-args.eave, -2000)], align=None)
+        extrude(amount=-(L_bld + 2000))
+    UNDER_SOFFIT = _sp.part.moved(Location((0, -1000, 0)))
+    yw = 0.0
+    while yw <= L_bld + 1:
+        wall = box(-PLATE_B / 2, S + PLATE_B / 2, yw - WALL_T / 2, yw + WALL_T / 2,
+                   -args.wall_h - PLATE_T, z_apex_top) & UNDER_SOFFIT
+        wall = wall - box(-PLATE_B, S + PLATE_B, yw - WALL_T, yw + WALL_T, -PLATE_T - 1, D + 1)   # plate + joist band
+        for cut in (purlin, mirror_x(purlin)):          # purlins bear on the wall: notch their envelope out
+            bb = cut.bounding_box()
+            wall = wall - box(bb.min.X - 1, bb.max.X + 1, yw - WALL_T, yw + WALL_T, bb.min.Z - 1, bb.max.Z + 1)
+        if RB:
+            wall = wall - box(x_c - RB / 2 - 1, x_c + RB / 2 + 1, yw - WALL_T, yw + WALL_T, z_apex_top - RD - 1, z_apex_top + 1)
+        add("xwall", wall)
+        yw += args.bay
+
 # ---- hanging beams: on top of the joists, one per half ---------------------------
 bx = args.beam_x if args.beam_x is not None else S / 4
 beam = box(bx - BB / 2, bx + BB / 2, 0, L_bld, D, D + BD)
@@ -118,7 +150,7 @@ for name, solids in members.items():
 export_stl(everything, os.path.join(args.out, "roof_truss.stl"))
 bb = everything.bounding_box()
 print(f"rise {soffit(x_c):.0f} mm (soffit) / apex top {z_apex_top:.0f} mm; collar top {z_collar_top:.0f}, "
-      f"purlin at x={x_p:.0f}; beams at x={bx:.0f}/{S-bx:.0f}")
+      f"purlin at x={x_p:.0f}; beams at x={bx:.0f}/{S-bx:.0f}; building length {L_bld:.0f}, cross walls every {args.bay:.0f}")
 print(f"bbox {bb.min} -> {bb.max}")
 for name, solids in members.items():
     print(f"  {name:7s} x{len(solids):2d}  vol {sum(s.volume for s in solids)/1e9:.4f} m^3")
