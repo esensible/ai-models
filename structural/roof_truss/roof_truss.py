@@ -139,7 +139,9 @@ class RoofTruss:
         # collar tie: pinned both ends (nailed/bolted lap — no moment continuity)
         self.collar_elem = fr.beam(self.collar_L, self.collar_R, E, A, I,
                                    fr.new_rot(), fr.new_rot(), "collar", "collar tie")
-        self.tie_elem = None
+        self.tie_elems: list[int] = []
+        self.tie_nodes: list[int] = []
+        self.prop_nodes: list[int] = []
         # supports
         fr.fix(self.wall_L, "x", "y")
         if a.support == "pinned":
@@ -147,8 +149,23 @@ class RoofTruss:
         else:
             fr.fix(self.wall_R, "y")
             if a.support == "tie":
-                self.tie_elem = fr.beam(self.wall_L, self.wall_R, E, A, I,
-                                        fr.new_rot(), fr.new_rot(), "tie", "bottom tie")
+                # ceiling joist: continuous beam wall->wall, pinned to the rafter feet,
+                # optionally propped at a.joist_props equally spaced points
+                nt = 12
+                self.tie_nodes = [self.wall_L] + [fr.node(a.span * k / nt, 0) for k in range(1, nt)] + [self.wall_R]
+                rots = [fr.new_rot() for _ in self.tie_nodes]
+                for i in range(nt):
+                    self.tie_elems.append(fr.beam(self.tie_nodes[i], self.tie_nodes[i + 1], E, A, I,
+                                                  rots[i], rots[i + 1], "tie", "ceiling joist"))
+                if a.joist_props:
+                    if nt % (a.joist_props + 1):
+                        raise SystemExit("--joist-props must be 1, 2, 3, 5 or 11 (12 joist elements)")
+                    step = nt // (a.joist_props + 1)
+                    for k in range(1, a.joist_props + 1):
+                        nd = self.tie_nodes[k * step]
+                        fr.fix(nd, "y")
+                        self.prop_nodes.append(nd)
+                self.L_joist = a.span / (a.joist_props + 1)
         if a.strutted:                       # under-purlin strutted down to a wall/beam
             fr.fix(self.collar_L, "y")
             fr.fix(self.collar_R, "y")
@@ -167,13 +184,17 @@ class RoofTruss:
         for side in "LR":
             for idx in self.rafter_elems[side]:
                 G.w_v[idx] -= a.g_roof * kpa * sp    # sheeting+battens, on slope area
-        if self.tie_elem is not None and a.ceiling > 0:
-            G.w_v[self.tie_elem] -= a.ceiling * kpa * sp
+        for idx in self.tie_elems:
+            G.w_v[idx] -= a.ceiling * kpa * sp           # ceiling lining on plan area
         Q = LoadCase("Q")
         for side in "LR":
             for idx in self.rafter_elems[side]:
                 Q.w_v[idx] = -a.q_roof * kpa * math.cos(self.th) * sp   # plan-area load
         Qp = LoadCase("Qp", P={self.midlow_L: (0.0, -a.q_point)})
+        Qc = LoadCase("Qc")                              # ceiling maintenance point load
+        if self.tie_elems:
+            step = 12 // (a.joist_props + 1)
+            Qc.P[self.tie_nodes[step // 2]] = (0.0, -a.qc_point)   # mid first joist span
 
         def wind(name, p_left, p_right):            # net pressure onto roof surface (kPa, +down)
             w = LoadCase(name)
@@ -185,7 +206,7 @@ class RoofTruss:
         Wu = wind("Wu", a.wind_up, a.wind_up)
         Wd = wind("Wd", a.wind_down, a.wind_down)
         Wa = wind("Wa", a.wind_asym[0], a.wind_asym[1])
-        return dict(G=G, Q=Q, Qp=Qp, Wu=Wu, Wd=Wd, Wa=Wa)
+        return dict(G=G, Q=Q, Qp=Qp, Qc=Qc, Wu=Wu, Wd=Wd, Wa=Wa)
 
     def combos(self):
         lc = self.load_cases()
@@ -194,6 +215,7 @@ class RoofTruss:
             ("1.35G", lc["G"].scaled(1.35), 0.57, 0.25),
             ("1.2G+1.5Q", lc["G"].scaled(1.2) + lc["Q"].scaled(1.5), 0.94, 0.25),
             ("1.2G+1.5Qp", lc["G"].scaled(1.2) + lc["Qp"].scaled(1.5), 0.97, 0.25),
+            ("1.2G+1.5Qc", lc["G"].scaled(1.2) + lc["Qc"].scaled(1.5), 0.97, 0.25),
             ("1.2G+Wd", lc["G"].scaled(1.2) + lc["Wd"], 1.0, 1.0),
             ("0.9G+Wu", lc["G"].scaled(0.9) + lc["Wu"], 1.0, 1.0),
             ("1.2G+Wa", lc["G"].scaled(1.2) + lc["Wa"], 1.0, 1.0),
@@ -223,10 +245,11 @@ class RoofTruss:
                 Lr = self.L_collar / (a.collar_restraints + 1)
                 rows.append(dict(elem=idx, group=e.group, tag=e.tag, L=L,
                                  Lay_sag=Lr, Lay_hog=Lr, Lax_c=self.L_collar, Lay_c=Lr))
-            else:  # tie
-                Lr = a.span / (a.tie_restraints + 1)
+            else:  # ceiling joist: top edge restrained only at props, bottom edge by ceiling battens
+                Lj = self.L_joist
                 rows.append(dict(elem=idx, group=e.group, tag=e.tag, L=L,
-                                 Lay_sag=Lr, Lay_hog=Lr, Lax_c=a.span, Lay_c=Lr))
+                                 Lay_sag=Lj, Lay_hog=min(a.ceiling_battens, Lj),
+                                 Lax_c=Lj, Lay_c=min(a.ceiling_battens, Lj)))
         return pl.DataFrame(rows)
 
     def run_uls(self) -> tuple[pl.DataFrame, pl.DataFrame]:
@@ -245,8 +268,9 @@ class RoofTruss:
                     combo=name, k1=k1, r=r, elem=idx,
                     s=s, x=x1 + (x2 - x1) * s / L, y=y1 + (y2 - y1) * s / L,
                     N=N, V=V, M=M)))
-            for nd, lab in ((self.wall_L, "wall L"), (self.wall_R, "wall R"),
-                            (self.collar_L, "strut L"), (self.collar_R, "strut R")):
+            for nd, lab in ([(self.wall_L, "wall L"), (self.wall_R, "wall R"),
+                             (self.collar_L, "strut L"), (self.collar_R, "strut R")]
+                            + [(nd, f"joist prop {k+1}") for k, nd in enumerate(self.prop_nodes)]):
                 Rx, Ry = res.reaction(nd)
                 if abs(Rx) > 1e-6 or abs(Ry) > 1e-6:
                     reacts.append(dict(combo=name, support=lab, H_kN=Rx / 1e3, V_kN=Ry / 1e3))
@@ -334,13 +358,13 @@ class RoofTruss:
                 Lc = self.L_collar
                 collar_sag = 5 * q * Lc ** 4 / (384 * self.grade["E"] * self.sec.I)
             tie_sag = 0.0
-            if self.tie_elem is not None:
-                p, q = fr._local_udl(self.tie_elem, lc)
-                tie_sag = 5 * q * a.span ** 4 / (384 * self.grade["E"] * self.sec.I)
+            if self.tie_elems:  # worst vertical joist displacement (props/walls are at 0)
+                ys = [res.disp(nd)[1] for nd in self.tie_nodes]
+                tie_sag = min(ys) if abs(min(ys)) > abs(max(ys)) else max(ys)
             rows.append(dict(case=name, j2=j2,
                              rafter_mm=best * j2, lower_seg_mm=dseg * j2, apex_mm=apex * j2,
                              spread_mm=spread * j2, collar_shorten_mm=(cr[0] - cl[0]) * j2,
-                             collar_sag_mm=collar_sag * j2, tie_sag_mm=tie_sag * j2))
+                             collar_sag_mm=collar_sag * j2, joist_sag_mm=tie_sag * j2))
         return pl.DataFrame(rows)
 
 
@@ -420,8 +444,6 @@ def plot_case(model: RoofTruss, df: pl.DataFrame, sls: pl.DataFrame, title: str,
     Mmax = max(abs(sub["M"].min()), abs(sub["M"].max()), 1.0)
     scale = 600.0 / Mmax
     for idx, e in enumerate(fr.elements):
-        if e.group != "rafter" and e.group != "collar":
-            continue
         rows = sub.filter(pl.col("elem") == idx).sort("s")
         ang = fr.angle(e)
         nx, ny = -math.sin(ang), math.cos(ang)
@@ -436,6 +458,9 @@ def plot_case(model: RoofTruss, df: pl.DataFrame, sls: pl.DataFrame, title: str,
         for nd in (model.collar_L, model.collar_R):
             x, y = fr.nodes[nd]
             ax.plot([x, x], [y, 0], ls="--", color="gray"); ax.plot(x, 0, marker="^", ms=10, color="gray")
+    for nd in model.prop_nodes:
+        x, y = fr.nodes[nd]
+        ax.plot(x, y, marker="^", ms=10, color="gray", clip_on=False)
     ax.set_aspect("equal"); ax.set_title(f"{title}\nbending moment, governing ULS combo: {gov} "
                                          f"(|M|max = {Mmax/1e6:.2f} kNm)")
     ax.set_xlabel("mm"); ax.set_ylabel("mm"); ax.grid(alpha=.3)
@@ -454,7 +479,7 @@ def plot_case(model: RoofTruss, df: pl.DataFrame, sls: pl.DataFrame, title: str,
     r = sls.filter(pl.col("case") == "G long-term").row(0, named=True)
     ax.set_aspect("equal"); ax.grid(alpha=.3)
     ax.set_title(f"long-term dead-load deflection x{amp:g} (j2={j2:g}): rafter {r['rafter_mm']:.1f} mm, "
-                 f"apex {r['apex_mm']:.1f} mm, wall spread {r['spread_mm']:.1f} mm")
+                 f"apex {r['apex_mm']:.1f} mm, wall spread {r['spread_mm']:.1f} mm, joist {r['joist_sag_mm']:.1f} mm")
     fig.tight_layout(); fig.savefig(path, dpi=110); plt.close(fig)
 
 
@@ -477,8 +502,9 @@ def run_one(a, title: str | None = None, plots_dir: str | None = None, tag: str 
                   pl.col("V_kN").max().alias("V max (down)"),
                   pl.col("V_kN").min().alias("V min (uplift if <0)")).sort("support")), ""]
     lim = m.L_rafter / 300
+    jl = f", ceiling joist span {m.L_joist:.0f} mm → {m.L_joist/300:.1f} mm" if m.tie_elems else ""
     lines += [f"Serviceability deflections (mm; rafter limit span/300 = {lim:.1f} mm on the "
-              f"{m.L_rafter:.0f} mm slope length, lower segment {m.L_lower/300:.1f} mm):", "",
+              f"{m.L_rafter:.0f} mm slope length, lower segment {m.L_lower/300:.1f} mm{jl}):", "",
               md(sls, {"j2": ".0f"}), ""]
     cn = connection_note(df, a)
     if cn:
@@ -486,6 +512,8 @@ def run_one(a, title: str | None = None, plots_dir: str | None = None, tag: str 
     if plots_dir:
         os.makedirs(plots_dir, exist_ok=True)
         p = os.path.join(plots_dir, f"{tag or a.support}{'_strutted' if a.strutted else ''}_{m.sec}.png")
+        for old in [f for f in os.listdir(plots_dir) if f == os.path.basename(p)]:
+            os.remove(os.path.join(plots_dir, old))
         plot_case(m, df, sls, title, p)
         lines += [f"![{title}]({os.path.basename(p)})", ""]
     return dict(model=m, df=df, reacts=reacts, sls=sls, gov=gov, text="\n".join(lines),
@@ -502,9 +530,12 @@ def sweep(a, sections: list[tuple[float, float]]) -> pl.DataFrame:
         raf = g.filter(pl.col("group") == "rafter").row(0, named=True)
         col = g.filter(pl.col("group") == "collar").row(0, named=True)
         G = sls.filter(pl.col("case") == "G long-term").row(0, named=True)
+        tie = g.filter(pl.col("group") == "tie")
         rows.append({"section": str(m.sec), "rafter util": raf["util"], "rafter combo": raf["combo"],
-                     "collar util": col["util"], "rafter δG mm": abs(G["rafter_mm"]),
-                     "limit mm": m.L_rafter / 300, "H wall kN": reacts["H_kN"].abs().max()})
+                     "collar util": col["util"],
+                     "joist util": tie["util"][0] if tie.height else float("nan"),
+                     "rafter δG mm": abs(G["rafter_mm"]), "joist δG mm": abs(G["joist_sag_mm"]),
+                     "H wall kN": reacts["H_kN"].abs().max()})
     return pl.DataFrame(rows)
 
 
@@ -517,13 +548,16 @@ def parse(argv=None):
     g.add_argument("--collar-drop", type=float, default=1000, help="collar tie below the apex (vertical)")
     g.add_argument("--section", type=lambda s: tuple(float(v) for v in s.lower().split("x")),
                    default=(35, 105), help="b x d, e.g. 35x105 (all members)")
-    g.add_argument("--support", choices=["pinned", "roller", "tie"], default="pinned",
-                   help="pinned: both walls resist thrust; roller: one wall free to spread; "
-                        "tie: bottom tie (same section) at wall-plate level")
+    g.add_argument("--support", choices=["pinned", "roller", "tie"], default="tie",
+                   help="tie: ceiling joists (same section) tie the rafter feet [default]; "
+                        "pinned: both walls resist thrust; roller: one wall free to spread")
+    g.add_argument("--joist-props", type=int, default=0,
+                   help="intermediate vertical supports under the ceiling joists (internal wall / "
+                        "hanging beam): 1 = mid-span, 2 = third points, 3 = quarter points")
+    g.add_argument("--ceiling-battens", type=float, default=450, help="ceiling batten spacing (joist bottom-edge restraint)")
     g.add_argument("--strutted", action="store_true", help="under-purlins strutted to a wall/beam below")
     g.add_argument("--battens", type=float, default=900, help="batten spacing (top-edge restraint)")
     g.add_argument("--collar-restraints", type=int, default=0, help="intermediate lateral restraints on collar")
-    g.add_argument("--tie-restraints", type=int, default=0)
     t = ap.add_argument_group("timber (AS 1720.1)")
     t.add_argument("--grade", choices=sorted(GRADES), default="F7")
     t.add_argument("--seasoned", action="store_true", help="use seasoned rho_b/rho_c (default unseasoned Oregon)")
@@ -534,7 +568,8 @@ def parse(argv=None):
     t.add_argument("--nail-qk", type=float, default=0.515, help="kN, 3.15 mm nail, J4 (Table 4.1(B))")
     l = ap.add_argument_group("loads (kPa, AS/NZS 1170)")
     l.add_argument("--g-roof", type=float, default=0.10, help="sheeting+battens on slope area (timber SW added)")
-    l.add_argument("--ceiling", type=float, default=0.0, help="ceiling load on the bottom tie (plan)")
+    l.add_argument("--ceiling", type=float, default=0.12, help="ceiling lining on the joists (plan; plasterboard+battens)")
+    l.add_argument("--qc-point", type=float, default=900, help="N, concentrated load on a ceiling joist (AS 1684 basis)")
     l.add_argument("--q-roof", type=float, default=0.25, help="roof live load on plan (R2, ≥14 m2)")
     l.add_argument("--q-point", type=float, default=1400, help="N, concentrated roof live load")
     l.add_argument("--wind-up", type=float, default=-0.8, help="net ULS pressure onto roof, both slopes (N2 indicative)")
@@ -566,18 +601,26 @@ def main(argv=None):
         if a.detail:
             print(md(summarise(r["df"])))
         return
-    for support, strutted in (("pinned", False), ("tie", False), ("roller", False),
-                              ("pinned", True), ("tie", True)):
+    cases = [  # (support, strutted, joist props, title)
+        ("tie", False, 0, "ceiling joists tie the feet, joists unsupported, purlins not strutted"),
+        ("tie", False, 1, "ceiling joists tie the feet, joists propped mid-span, purlins not strutted"),
+        ("tie", True, 1, "ceiling joists propped mid-span + under-purlins strutted"),
+        ("tie", True, 2, "ceiling joists propped at third points + under-purlins strutted"),
+        ("pinned", False, 0, "no joists: walls resist thrust"),
+        ("roller", False, 0, "no joists: one wall free to spread"),
+    ]
+    for support, strutted, props, title in cases:
         aa = argparse.Namespace(**vars(a)); aa.support = support; aa.strutted = strutted
-        r = run_one(aa, plots_dir=plots)
+        aa.joist_props = props
+        r = run_one(aa, title=title, plots_dir=plots, tag=f"{support}_p{props}")
         print(r["text"])
         if a.detail:
             print(md(summarise(r["df"])), "\n")
-    print("### Section sweep (walls resist thrust = pinned, purlins NOT strutted)\n")
-    secs = [(35, 105), (35, 140), (45, 140), (45, 190), (35, 190), (45, 240)]
-    aa = argparse.Namespace(**vars(a)); aa.support = "pinned"; aa.strutted = False
+    secs = [(35, 105), (35, 140), (45, 140), (35, 190), (45, 190), (45, 240)]
+    print("### Section sweep — joists propped mid-span, purlins NOT strutted\n")
+    aa = argparse.Namespace(**vars(a)); aa.support = "tie"; aa.strutted = False; aa.joist_props = 1
     print(md(sweep(aa, secs)), "\n")
-    print("### Section sweep (pinned + purlins strutted)\n")
+    print("### Section sweep — joists propped mid-span + purlins strutted\n")
     aa.strutted = True
     print(md(sweep(aa, secs)), "\n")
 

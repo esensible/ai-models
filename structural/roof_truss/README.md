@@ -1,10 +1,12 @@
 # Roof truss structural analysis
 
 Indicative structural analysis of a coupled-rafter roof "truss" — two rafters,
-a collar tie, under-purlins at the collar node — spanning 8.5 m between wall
-supports at 27° pitch, trusses at 1200 c/c, all members 35×105 Oregon, corrugated
-iron roof. Results and recommendations are in [`REPORT.md`](REPORT.md); the
-full generated tables are in [`report/analysis.md`](report/analysis.md).
+ceiling joists tying the rafter feet (and carrying a ceiling), a collar tie, and
+transverse under-purlins at the collar node tying the trusses together —
+spanning 8.5 m between wall supports at 27° pitch, trusses at 1200 c/c, all
+members 35×105 Oregon, corrugated iron roof. Results and recommendations are in
+[`REPORT.md`](REPORT.md); the full generated tables are in
+[`report/analysis.md`](report/analysis.md).
 
 **This is not a certified design.** It is a transparent, parametric model you can
 interrogate. Wind pressures, timber grade, capacity factor and restraint
@@ -17,7 +19,7 @@ class, the timber actually supplied and AS 1684 / AS 1720.1 before building.
 uv venv .venv && VIRTUAL_ENV=.venv uv pip install -r structural/roof_truss/requirements.txt
 .venv/bin/python structural/roof_truss/roof_truss.py            # default case
 .venv/bin/python structural/roof_truss/roof_truss.py --all --plots   # support matrix + section sweep + PNGs
-.venv/bin/python structural/roof_truss/roof_truss.py --support tie --strutted --section 35x140
+.venv/bin/python structural/roof_truss/roof_truss.py --joist-props 1 --strutted --section 35x140
 .venv/bin/python structural/roof_truss/roof_truss.py --help
 ```
 
@@ -36,17 +38,20 @@ work (station actions, envelopes, utilisation, report tables) is polars.
   bending continuity).
 - **Collar tie**: beam element pinned both ends (nailed/bolted lap carries no
   moment); it carries axial force and its own self-weight bending.
-- **Under-purlins**: run along the building at the collar node. Unless
-  `--strutted`, they are assumed to be carried *by* the trusses (lateral
-  restraint only, no vertical support). With `--strutted` the collar node is
-  propped vertically (purlin strutted to a wall / strutting beam below).
+- **Under-purlins**: run along the building at the collar node and tie the
+  trusses together. By default they are bracing only (lateral restraint of the
+  node, no vertical support). `--strutted` is the what-if where they are
+  strutted down to a wall / strutting beam and prop the collar node.
 - **Supports** (`--support`):
-  - `pinned` — both walls resist the horizontal thrust (masonry, or walls
-    braced/tied some other way). The reported `|H|` is what each wall must take.
-  - `roller` — one wall is free to spread: what happens if nothing takes the
-    thrust and only the collar tie holds the frame together.
-  - `tie` — a 35×105 bottom tie (ceiling joist) at wall-plate level, pinned, takes
-    the thrust in tension. Its own 8.5 m self-weight sag is reported too.
+  - `tie` *(default)* — ceiling joists (same section, continuous, 12 elements)
+    at wall-plate level, pinned to the rafter feet, carrying `--ceiling` and a
+    `--qc-point` concentrated load. `--joist-props N` props them at N equally
+    spaced points (1 = mid-span wall/hanging beam, 2 = third points, 3 = quarter
+    points). Joist top edge restrained only at props; bottom edge by ceiling
+    battens (`--ceiling-battens` 450).
+  - `pinned` — no joists; both walls resist the horizontal thrust. The reported
+    `|H|` is what each wall must take.
+  - `roller` — no joists and one wall free to spread.
 
 ## Loads (kN, m; AS/NZS 1170)
 
@@ -55,12 +60,14 @@ work (station actions, envelopes, utilisation, report tables) is polars.
 | Sheeting + battens `--g-roof` | 0.10 kPa on slope area | corrugated steel ~0.05 + battens; rafter/collar self-weight added automatically (550 kg/m³) |
 | Roof live `--q-roof` | 0.25 kPa on plan | AS 1170.1 R2 non-trafficable, area ≥ 14 m² |
 | Concentrated live `--q-point` | 1.4 kN | mid lower-rafter segment (worst position) |
+| Ceiling lining `--ceiling` | 0.12 kPa on plan | plasterboard + battens, on the joists |
+| Ceiling concentrated `--qc-point` | 0.9 kN | mid first joist span (AS 1684 ceiling-joist basis) |
 | Wind uplift `--wind-up` | −0.8 kPa net, both slopes | indicative N2 (q_u 0.96 kPa, leeward C_pe −0.6, C_pi +0.2) |
 | Wind down `--wind-down` | +0.6 kPa net, both slopes | conservative |
 | Wind asymmetric `--wind-asym` | +0.5 / −0.8 kPa | windward pressure with internal suction, leeward uplift; **governs** |
 | Serviceability wind `--ws-ratio` | 0.42 × ultimate | (26/40)² |
 
-Combinations: 1.35G · 1.2G+1.5Q · 1.2G+1.5Q_point · 1.2G+W_down · 0.9G+W_up ·
+Combinations: 1.35G · 1.2G+1.5Q · 1.2G+1.5Q_point · 1.2G+1.5Q_ceiling · 1.2G+W_down · 0.9G+W_up ·
 1.2G+W_asym · 0.9G+W_asym. Serviceability: G long-term (×j₂ = 3, unseasoned),
 0.7Q, W_s. Site wind class N3 scales all wind pressures by (50/40)² ≈ 1.56.
 
@@ -76,7 +83,8 @@ Combinations: 1.35G · 1.2G+1.5Q · 1.2G+1.5Q_point · 1.2G+W_down · 0.9G+W_up 
   wall, collar/purlin node and apex. Unseasoned ρ_b, ρ_c with r = 0.25 (gravity)
   or 1.0 (wind).
 - Compression: S3 = segment length / d, S4 = batten spacing / b for rafters;
-  collar and tie use their full length / (restraints + 1).
+  the collar uses its full length / (`--collar-restraints` + 1); joists their
+  propped span.
 - Checks per station: bending, shear, combined bending + compression
   (cl 3.5.1, both expressions), bending + tension (cl 3.5.2). `util` is the
   worst demand/capacity ratio; > 1.0 fails.
@@ -85,7 +93,7 @@ Combinations: 1.35G · 1.2G+1.5Q · 1.2G+1.5Q_point · 1.2G+W_down · 0.9G+W_up 
 
 ## Known simplifications
 
-- Point load placed at the nearest node (mid lower segment); eaves overhang,
+- Point loads placed at the nearest node; eaves overhang,
   birdsmouth notch and ridge board ignored (the notch reduces capacity at the
   heel — a real design must check it).
 - No load sharing (k9 = 1.0) — at 1200 c/c the battens don't share much.
