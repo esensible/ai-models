@@ -89,6 +89,25 @@ complete package that passes everything:
 - Keep the rafter-foot-to-joist connection as a nailed or bolted tension
   splice for 2.4 kN per truss.
 
+## Laminating instead of replacing
+
+Doubling members by nailing a second 35×105 face to face (70×105) is attractive
+because it can be done in place. Checked combinations:
+
+| Laminated | Rafter | Collar | Purlin | Ridge |
+|---|---|---|---|---|
+| rafters + collars doubled, collar runner at mid-length | 0.92 | 0.56 | **3.25** | 0.93 |
+| … + purlins doubled (70×105) | 0.88 | 0.57 | 1.20 | 0.85 |
+| … + purlins tripled (105×105) | 0.86 | 0.57 | 0.86 | 0.79 |
+| … + purlins replaced with 45×190 | 0.81 | 0.50 | 1.18 | 0.62 |
+| … + purlins replaced with 35×190 | 0.83 | 0.52 | 2.38 | 0.66 |
+
+Doubling the rafters and collars solves those two members. The purlins need
+either three plies, or a doubled purlin plus one strut per bay down to the
+hanging beam, or a 45×240 replacement. Lamination fixings: nail the plies
+together at ≤ 600 mm staggered so they buckle as one; the plies share bending
+without needing composite action.
+
 ## Sensitivities
 
 - **Wind.** N1 as confirmed. Wind now only governs the purlins (asymmetric
