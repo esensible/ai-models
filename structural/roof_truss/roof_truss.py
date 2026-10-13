@@ -160,8 +160,8 @@ class RoofGrillage:
         for i in range(len(nR) - 1):
             seg = "upper" if i < n2 else "lower"
             t["rafter"].append(fr.beam(nR[i], nR[i + 1], E, A, I, rR[i], rR[i + 1], "rafter", f"rafter R {seg}"))
-        t["collar"] = fr.beam(t["collar_L"], t["collar_R"], E, Ac, Ic, fr.new_rot(), fr.new_rot(),
-                              "collar", "collar tie")
+        t["collar"] = None if a.no_collar else fr.beam(t["collar_L"], t["collar_R"], E, Ac, Ic,
+                                                        fr.new_rot(), fr.new_rot(), "collar", "collar tie")
         fr.fix(t["wall_L"], "x", "y")
         if a.support == "pinned":
             fr.fix(t["wall_R"], "x", "y")
@@ -408,7 +408,7 @@ def plot_case(m: RoofGrillage, df: pl.DataFrame, sls: pl.DataFrame, title: str, 
     import matplotlib.pyplot as plt
     fr, a = m.fr, m.a
     tm = m.trusses[m.mid_truss]
-    truss_elems = set(tm["rafter"] + [tm["collar"]] + tm["tie"])
+    truss_elems = set(tm["rafter"] + ([tm["collar"]] if tm["collar"] is not None else []) + tm["tie"])
     gov = df.filter(pl.col("elem").is_in(list(truss_elems))).sort("util", descending=True).row(0, named=True)["combo"]
     sub = df.filter(pl.col("combo") == gov)
     nrow = 3 if m.purlin_elems else 2
@@ -542,6 +542,7 @@ def parse(argv=None):
     g.add_argument("--battens", type=float, default=900)
     g.add_argument("--ceiling-battens", type=float, default=450)
     g.add_argument("--collar-restraints", type=int, default=0)
+    g.add_argument("--no-collar", action="store_true", help="remove the collar ties entirely")
     t = ap.add_argument_group("timber (AS 1720.1)")
     t.add_argument("--grade", choices=sorted(GRADES), default="F7")
     t.add_argument("--seasoned", action="store_true")

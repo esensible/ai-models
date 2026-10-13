@@ -127,6 +127,33 @@ is the one that is cheap and clearly settles it; the rafter and joist margins
 either need the under-purlin prop, a 35×140 second ply on the rafters, or the
 grade confirmed as F8.
 
+## Removing the collar ties (`--no-collar`)
+
+Without the collar, each rafter is a 4.77 m beam from wall plate to ridge with
+nothing in between, unless the under-purlin becomes a real support. The ridge
+beam doesn't help: the apex barely moves anyway (the joists tie the feet, so
+the rafters prop each other at the ridge); the problem is the rafter's own
+span. Results, ceiling joists on the mid wall + hanging beams throughout:
+
+| Rafters | Under-purlins | Rafter | Under-purlin | Ridge | Rafter sag, long-term (limit 16 mm) |
+|---|---|---|---|---|---|
+| 35×105 | as built 35×105 on walls | 1.64 | **4.3** | 0.38 | 13 mm |
+| 35×105 | bracing only | **2.9** | – | 0.91 | **94 mm** |
+| 70×105 doubled | bracing only | **1.48** | – | 0.79 | **54 mm** |
+| 45×240 | bracing only | 0.48 | – | 0.76 | 7.8 mm |
+| 35×140 | **45×240 beams on the cross walls** | 0.83 | 1.00 | 0.30 | 1.8 mm |
+| 70×105 doubled | 45×240 beams on the cross walls | 0.71 | 1.02 | 0.27 | 2.3 mm |
+| 35×140 | 35×105 strutted to the hanging beams at every truss | 0.79 | – | – | 1.5 mm |
+| 70×105 doubled | strutted at every truss | 0.68 | – | – | 2.0 mm |
+
+So the collars can go, provided the under-purlins take over as the rafters'
+mid-span support: either replace them with 45×240 F7 beams on the cross walls
+(1.00, each interior wall then carries 7.6 kN per purlin), or keep 35×105 and
+strut them down to the hanging beams at every truss (2.3 kN per strut, 1.9 kN
+uplift; the hanging beams need checking for that). Rafters then need 35×140 or
+a doubled 35×105. Without that support, removing the collars needs 45×240
+rafters at 1200 c/c — a different roof.
+
 ## Sensitivities
 
 - **Wind.** N1 as confirmed. Wind now only governs the purlins (asymmetric
