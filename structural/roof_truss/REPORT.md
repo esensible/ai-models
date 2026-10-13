@@ -154,6 +154,37 @@ uplift; the hanging beams need checking for that). Rafters then need 35×140 or
 a doubled 35×105. Without that support, removing the collars needs 45×240
 rafters at 1200 c/c — a different roof.
 
+## Vertical struts from the collar nodes down to the hanging beams (`--struts --hanging-beam`)
+
+The hanging beams are modelled explicitly here: runners on top of the joists
+directly under the collar nodes (2.29 m in from each outer wall), bearing on
+the cross walls at 3.6 m, 45×240 F7 unless stated. A 35×105 strut at every
+truss runs from the rafter/under-purlin junction straight down onto the beam.
+Joists on the mid wall and the beams.
+
+| Collars | Rafters | Hanging beam | Rafter | Collar | Beam | Strut | Under-purlin | Ridge | Joist | Beam sag, long-term (limit 12 mm) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| kept | 35×105 | 45×240 | 1.55 | **6.6** | 0.72 | 0.27 | 0.38 | 0.60 | 0.55 | 4 mm |
+| removed | 35×105 | 45×240 | **1.39** | – | 0.87 | 0.38 | 0.42 | 0.31 | 0.55 | 6 mm |
+| removed | 35×140 | 45×240 | 0.83 | – | 0.85 | 0.37 | 0.42 | 0.30 | 0.55 | 6 mm |
+| removed | 70×105 doubled | 45×240 | 0.71 | – | 0.88 | 0.38 | 0.42 | 0.27 | 0.55 | 6 mm |
+| removed | 70×105 doubled | 45×190 | 0.73 | – | 0.92 | 0.35 | 0.72 | 0.28 | 0.54 | 10 mm |
+| removed | 70×105 doubled | 90×240 | 0.70 | – | 0.29 | 0.40 | 0.25 | 0.27 | 0.55 | 3 mm |
+
+This is the cleanest arrangement found: with the collars removed, struts at
+every truss and the rafters at 35×140 or doubled, **every member passes**,
+including the under-purlins (now genuinely just bracing, 0.4), the ridge (0.3)
+and the joists (0.55). The hanging beam does the work: 0.85–0.92 as a 45×240
+or 45×190 over 3.6 m, carrying about 8.5 kN onto each interior cross wall, and
+each strut sees ~1.9 kN down and ~1.4 kN up in wind (fix top and bottom for
+uplift). Keeping the collars with struts gains nothing — the collar still ends
+up as a 6.6× strut because the beam is not rigid.
+
+Things to confirm before building it: the hanging beams' actual size, span and
+bearing (the model assumes they span wall to wall at 3.6 m and sit directly
+under the strut line); struts must land on the beam, not on the joist between
+beams; and the cross walls must be load-bearing for the ~8.5 kN beam reaction.
+
 ## Sensitivities
 
 - **Wind.** N1 as confirmed. Wind now only governs the purlins (asymmetric

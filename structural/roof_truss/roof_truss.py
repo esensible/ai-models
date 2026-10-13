@@ -86,6 +86,8 @@ class RoofGrillage:
                      "collar": Section(*a.collar_section) if a.collar_section else self.sec,
                      "tie": Section(*a.joist_section) if a.joist_section else self.sec,
                      "purlin": Section(*a.purlin_section) if a.purlin_section else self.sec,
+                     "beam": Section(*a.hanging_beam) if a.hanging_beam else None,
+                     "strut": Section(*a.strut_section) if a.strut_section else self.sec,
                      "ridge": self.sec_ridge}
         self.grade = GRADES[a.grade]
         th = math.radians(a.pitch)
@@ -101,6 +103,7 @@ class RoofGrillage:
         self.L_lower = (half - xc) / math.cos(th)
         self.L_upper = xc / math.cos(th)
         self.L_collar = 2 * xc
+        self.x_strut = half - xc            # collar node x from the left wall
         self.n1 = self.n2 = 6
         self.nt = 12
 
@@ -120,8 +123,8 @@ class RoofGrillage:
         fr = Frame()
         self.fr = fr
         self.trusses = [self._build_truss(y) for y in ys]
-        self.purlin_elems, self.ridge_elems = [], []
-        self.purlin_wall_nodes, self.ridge_wall_nodes = [], []
+        self.purlin_elems, self.ridge_elems, self.beam_elems = [], [], []
+        self.purlin_wall_nodes, self.ridge_wall_nodes, self.beam_wall_nodes = [], [], []
         if a.bay > 0:
             for side in ("L", "R"):
                 self._build_runner([(t["y"], t["collar_" + side]) for t in self.trusses],
@@ -131,7 +134,14 @@ class RoofGrillage:
                 self._build_runner([(t["y"], t["apex"]) for t in self.trusses],
                                    self.rise, self.sec_ridge, "ridge", "ridge beam",
                                    self.ridge_elems, self.ridge_wall_nodes)
+            if self.secs["beam"] and a.support == "tie":
+                for k, side in enumerate("LR"):     # hanging/strutting beams on the joists under the collar nodes
+                    self._build_runner([(t["y"], t["joist_at_strut"][k]) for t in self.trusses],
+                                       0.0, self.secs["beam"], "beam", f"hanging beam {side}",
+                                       self.beam_elems, self.beam_wall_nodes)
         self.L_joist = a.span / (a.joist_props + 1)
+        if self.secs["beam"] and a.joist_props == 1:
+            self.L_joist = max(self.x_strut, a.span / 2 - self.x_strut)   # wall -> beam -> mid wall
 
     # --- one truss in the X-Z plane --------------------------------------------
     def _build_truss(self, y: float) -> dict:
@@ -142,7 +152,7 @@ class RoofGrillage:
         At, It = self.secs["tie"].A, self.secs["tie"].I
         half, rise, yc, xc = a.span / 2, self.rise, self.yc, self.xc
         n1, n2 = self.n1, self.n2
-        t = dict(y=y, rafter=[], collar=None, tie=[], props=[])
+        t = dict(y=y, rafter=[], collar=None, tie=[], props=[], struts=[])
         t["wall_L"] = fr.node(0, 0)
         t["wall_R"] = fr.node(a.span, 0)
         xs = [(0, 0)] + [((half - xc) * k / n1, yc * k / n1) for k in range(1, n1)] + [(half - xc, yc)]
@@ -169,17 +179,29 @@ class RoofGrillage:
             fr.fix(t["wall_R"], "y")
             if a.support == "tie":
                 nt = self.nt
-                tn = [t["wall_L"]] + [fr.node(a.span * k / nt, 0) for k in range(1, nt)] + [t["wall_R"]]
+                xs_j = {round(a.span * k / nt, 3) for k in range(1, nt)}
+                xs_j |= {round(self.x_strut, 3), round(a.span - self.x_strut, 3)}   # nodes under the collar
+                xs_j = sorted(xs_j)
+                tn = [t["wall_L"]] + [fr.node(x, 0) for x in xs_j] + [t["wall_R"]]
                 rots = [fr.new_rot() for _ in tn]
-                for i in range(nt):
+                for i in range(len(tn) - 1):
                     t["tie"].append(fr.beam(tn[i], tn[i + 1], E, At, It, rots[i], rots[i + 1], "tie", "ceiling joist"))
                 t["tie_nodes"] = tn
+                t["joist_at_strut"] = (tn[1 + xs_j.index(round(self.x_strut, 3))],
+                                       tn[1 + xs_j.index(round(a.span - self.x_strut, 3))])
                 if a.joist_props:
                     if nt % (a.joist_props + 1):
                         raise SystemExit("--joist-props must be 1, 2, 3, 5 or 11")
                     step = nt // (a.joist_props + 1)
                     for k in range(1, a.joist_props + 1):
-                        fr.fix(tn[k * step], "y"); t["props"].append(tn[k * step])
+                        nd = tn[1 + xs_j.index(round(a.span * k * step / nt, 3))]
+                        fr.fix(nd, "y"); t["props"].append(nd)
+                if a.struts:
+                    if a.hanging_beam is None and a.joist_props < 3:
+                        pass   # struts land on an unsupported joist — allowed, the joist check will show it
+                    for cn, jn in ((t["collar_L"], t["joist_at_strut"][0]), (t["collar_R"], t["joist_at_strut"][1])):
+                        As, Is = self.secs["strut"].A, self.secs["strut"].I
+                        t["struts"].append(fr.beam(jn, cn, E, As, Is, fr.new_rot(), fr.new_rot(), "strut", "strut"))
         if a.strutted:
             fr.fix(t["collar_L"], "y"); fr.fix(t["collar_R"], "y")
         return t
@@ -266,6 +288,10 @@ class RoofGrillage:
             elif e.group == "tie":
                 Lj = self.L_joist
                 r = dict(Lay_sag=Lj, Lay_hog=min(a.ceiling_battens, Lj), Lax_c=Lj, Lay_c=min(a.ceiling_battens, Lj))
+            elif e.group == "beam":   # top edge free between cross walls, bottom edge held by the joists
+                r = dict(Lay_sag=a.bay, Lay_hog=a.spacing, Lax_c=a.bay, Lay_c=a.spacing)
+            elif e.group == "strut":
+                r = dict(Lay_sag=L, Lay_hog=L, Lax_c=L, Lay_c=L)
             else:  # purlin / ridge: top edge held by the rafters at each truss, bottom edge free between walls
                 r = dict(Lay_sag=a.spacing, Lay_hog=a.bay, Lax_c=a.bay, Lay_c=a.spacing)
             rows.append(dict(elem=idx, group=e.group, tag=e.tag, L=L, b=sec.b, d=sec.d,
@@ -295,6 +321,8 @@ class RoofGrillage:
                 sup.append((nd, f"purlin on cross wall ({'L' if k < len(self.walls_y) else 'R'} y={fr.nodes[nd][0]:.0f})"))
             for nd in self.ridge_wall_nodes:
                 sup.append((nd, f"ridge on cross wall (y={fr.nodes[nd][0]:.0f})"))
+            for nd in self.beam_wall_nodes:
+                sup.append((nd, f"hanging beam on cross wall (y={fr.nodes[nd][0]:.0f})"))
             for nd, lab in sup:
                 Rx, Ry = res.reaction(nd)
                 reacts.append(dict(combo=name, support=lab, H_kN=Rx / 1e3, V_kN=Ry / 1e3))
@@ -408,7 +436,7 @@ def plot_case(m: RoofGrillage, df: pl.DataFrame, sls: pl.DataFrame, title: str, 
     import matplotlib.pyplot as plt
     fr, a = m.fr, m.a
     tm = m.trusses[m.mid_truss]
-    truss_elems = set(tm["rafter"] + ([tm["collar"]] if tm["collar"] is not None else []) + tm["tie"])
+    truss_elems = set(tm["rafter"] + ([tm["collar"]] if tm["collar"] is not None else []) + tm["tie"] + tm["struts"])
     gov = df.filter(pl.col("elem").is_in(list(truss_elems))).sort("util", descending=True).row(0, named=True)["combo"]
     sub = df.filter(pl.col("combo") == gov)
     nrow = 3 if m.purlin_elems else 2
@@ -543,6 +571,11 @@ def parse(argv=None):
     g.add_argument("--ceiling-battens", type=float, default=450)
     g.add_argument("--collar-restraints", type=int, default=0)
     g.add_argument("--no-collar", action="store_true", help="remove the collar ties entirely")
+    g.add_argument("--hanging-beam", type=parse_section, default=None,
+                   help="model the hanging beams explicitly (b x d) as runners on the joists under the collar nodes, "
+                        "bearing on the cross walls; use with --joist-props 1 (mid wall only)")
+    g.add_argument("--struts", action="store_true", help="vertical struts from the collar nodes down to the joists")
+    g.add_argument("--strut-section", type=parse_section, default=None)
     t = ap.add_argument_group("timber (AS 1720.1)")
     t.add_argument("--grade", choices=sorted(GRADES), default="F7")
     t.add_argument("--seasoned", action="store_true")
