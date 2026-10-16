@@ -6,9 +6,12 @@ from build123d import *
 import spec as S
 
 # ---- template 1: drill guide ------------------------------------------------
-M = 10  # body margin beyond the outermost screw lines (full bores everywhere)
-bx1, by1 = S.SX1 - M, S.SY1 - M
-bx2, by2 = S.SX2 + M, S.SY2 + M
+# v3: the body is EXACTLY HS_LEN wide in x (case ear tips = heatsink ends),
+# so the user registers the template by aligning both x ends flush with the
+# heatsink ends. y keeps a margin (heatsink width not specified).
+M = 10  # y-margin beyond the screw lines
+bx1, by1 = S.CTR_A[0] - S.CASE_TAB_TIP, S.SY1 - M
+bx2, by2 = bx1 + S.HS_LEN, S.SY2 + M
 t1 = Pos((bx1 + bx2) / 2, (by1 + by2) / 2, S.TEMPLATE_THICKNESS / 2) * \
     Box(bx2 - bx1, by2 - by1, S.TEMPLATE_THICKNESS)
 
@@ -23,14 +26,25 @@ def label(txt, x, y):
     except Exception:
         return None
 
-cut = list(bores(S.M3_HOLES + S.CORNER_DRILLS, S.BORE_M3))
-cut += bores(S.CASE_SCREWS + [S.JOINT_SCREW], S.BORE_M6, 0.8)
+# v3: no joint screw, no end mounts, dog-bone corner drills superseded by
+# the chain-drill corner holes. Case screws: 4 outer + all 4 inner
+# candidates (tap only the pairs whose ears survive the tab cutting).
+cut = list(bores(S.M3_HOLES, S.BORE_M3))
+cut += bores(S.CASE_SCREWS, S.BORE_M6, 0.8)
+# inner candidates are only 4.78 apart -- full M6 guide bores would merge
+# into slots. Guide 2.5 pilots instead; after the tab cutting, open out the
+# SURVIVING position to the M6 tap drill freehand (the pilot centres it).
+cut += bores(S.CASE_SCREWS_INNER, S.BORE_M3)
 cut += bores(S.MOUNT_HOLES, S.BORE_MOUNT, 0.8)
-for u, v in S.CORNER_DRILLS:   # double-ring marker = blind, relief depth only
-    ring = Pos(u, v) * (Circle(3.5) - Circle(2.7))
+cut += bores(S.CHAIN_DRILLS, S.BORE_CHAIN)
+for u, v in S.CHAIN_DRILLS:    # double-ring marker = blind, relief depth only
+    ring = Pos(u, v) * (Circle(S.BORE_CHAIN / 2 + 1.3) - Circle(S.BORE_CHAIN / 2 + 0.6))
     cut.append(Pos(0, 0, S.TEMPLATE_THICKNESS - 0.6) * extrude(ring, 0.6))
-lbl = label(f'T1: M3 @{S.BORE_M3:.1f} thru+tap / ringed=BLIND {S.RELIEF_DEPTH:.0f}mm'
-            f' / M6 @{S.BORE_M6:.1f} thru+tap / mount @{S.BORE_MOUNT:.1f} thru NO TAP', 20, 58)
+lbl = label(f'T1 v3: x ends FLUSH with heatsink ends / M3 @{S.BORE_M3:.1f} thru+tap'
+            f' / M6 outer @{S.BORE_M6:.1f} / join: PILOT pairs @{S.BORE_M3:.1f},'
+            f' open surviving ear to M6 tap after cutting'
+            f' / ringed chain @{S.BORE_CHAIN:.1f} = BLIND {S.RELIEF_DEPTH:.0f}mm'
+            f' / mount @{S.BORE_MOUNT:.1f} thru NO TAP', 12, 58)
 if lbl: cut.append(lbl)
 t1 -= cut
 
@@ -69,36 +83,14 @@ lbl = label(f'T2 {S.CUTTER:.0f}/{S.BUSH:.0f}: pin reliefs {S.RELIEF_DEPTH} deep'
 if lbl: cut.append(lbl)
 t2 -= cut
 
-# ---- template 3: skirt rebate island ----------------------------------------
-# The bushing rides around the OUTER edge: cut wall = template edge + OFFSET.
-# ALL FOUR edges derived identically: skirt inner face + SKIRT_CLEAR + OFFSET.
-# Rebate depth = REBATE_DEPTH exactly (stock skirt height): seating is
-# skirt-on-floor; the enclosure divider carries the height tolerance instead.
-inset = S.WALL_T + S.SKIRT_CLEAR + S.OFFSET          # 7.8 from wall outer face
-tx1 = S.CTR_A[0] - S.WALL_OUT + inset
-tx2 = S.CTR_B[0] + S.WALL_OUT - inset
-ty1 = S.CTR_A[1] - S.CASE_HALF_L + inset
-ty2 = S.CTR_A[1] + S.CASE_HALF_L - inset
-T3_FIX = [S.M3_HOLES_LOCAL[1], S.M3_HOLES_LOCAL[3],
-          (S.M3_HOLES_LOCAL[0][0] + S.B_OFF, S.M3_HOLES_LOCAL[0][1]),
-          (S.M3_HOLES_LOCAL[2][0] + S.B_OFF, S.M3_HOLES_LOCAL[2][1])]
-t3 = Pos((tx1 + tx2) / 2, (ty1 + ty2) / 2, S.TEMPLATE_THICKNESS / 2) * \
-    Box(tx2 - tx1, ty2 - ty1, S.TEMPLATE_THICKNESS)
-cut = []
-for u, v in T3_FIX:
-    cut.append(Pos(u, v, S.TEMPLATE_THICKNESS / 2) * Cylinder(3.2 / 2, S.TEMPLATE_THICKNESS + 2))
-    cut.append(Pos(u, v, S.TEMPLATE_THICKNESS - CB_DEPTH / 2 + 0.5) * Cylinder(CB_D / 2, CB_DEPTH + 1))
-lbl = label(f'T3 SKIRT REBATE {S.CUTTER:.0f}/{S.BUSH:.0f}: bushing rides OUTER edge, '
-            f'depth {S.REBATE_DEPTH}, clear outward past the heatsink edges', 12, 60)
-if lbl: cut.append(lbl)
-lbl = label(f'all edges = skirt inner face +{S.SKIRT_CLEAR} +{S.OFFSET}', 12, 30)
-if lbl: cut.append(lbl)
-t3 -= cut
+# template 3 (skirt rebate) is OBSOLETE: dead since FLAT_BASE, doubly so in
+# the v3 stock-cases-on-existing-heatsink plan.
 
 # ---- verify + export --------------------------------------------------------
-for name, part, nexp in (('template1_drill_guide', t1, 31),
-                         ('template2_router_reliefs', t2, 10),
-                         ('template3_skirt_rebate', t3, 4)):
+T1_EXPECT = len(S.M3_HOLES) + len(S.CASE_SCREWS) + len(S.CASE_SCREWS_INNER) + \
+    len(S.MOUNT_HOLES) + len(S.CHAIN_DRILLS)
+for name, part, nexp in (('template1_drill_guide', t1, T1_EXPECT),
+                         ('template2_router_reliefs', t2, 10)):
     bb = part.bounding_box()
     sec = section(part.solids()[0], Plane.XY.offset(2))
     inner = [w for f in sec.faces() for w in f.inner_wires()]

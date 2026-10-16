@@ -33,14 +33,18 @@ OUT = os.path.join(os.path.dirname(__file__), "..", "..", "out")  # cad/out
 os.makedirs(OUT, exist_ok=True)
 
 # === GROUND TRUTH =============================================================
-THICKNESS = 10.0      # [GROUND TRUTH] plate thickness (user spec)
+THICKNESS = 4.0       # [GROUND TRUTH] plate thickness (v3, user). The 10mm v1/v2
+                      #   held the steering wheel off its seat so it never
+                      #   centred on the shaft -- THAT was the apparent "offset",
+                      #   not any measurement error (the caliper spans were right
+                      #   all along). 4mm clears it; strength comes from PAHT-CF
+                      #   + 100% infill instead of thickness.
 BORE_DIA = 50.0       # [GROUND TRUTH] plate's central through-bore (user spec;
                       #   the fixtures' 22/33 inner holes were measured only to
                       #   LOCATE their centres, not to size this hole)
-HOLE_DIA = 6.0        # [GROUND TRUTH] adaptor bolt holes, all 8 (user spec)
-                      #   NOTE: fixture A's holes measure 6.2; if the bolts
-                      #   are M6, 6.0 printed holes will bind -- flagged, see
-                      #   conversation
+HOLE_DIA = 5.5        # [CHOSEN] all 8 holes: M5 machine screws (user, v6) with
+                      #   medium clearance (5.5 for a 5.0 screw; printed holes
+                      #   run tight). Was 6.0 for the earlier M6 plan.
 
 # === MEASURED: fixture A raw caliper readings (user, 2026-08-18) ==============
 A_HOLE = 6.2          # [MEASURED] bolt-hole diameter, inside jaws
@@ -78,13 +82,38 @@ B_BL_BORE_OO = None   # [MEASURED] cross-check from bottom-left -- not taken
 # === CHOSEN ===================================================================
 EDGE_MARGIN = 5.0     # [GROUND TRUTH] outer wall clearance around the holes
                       #   (user spec)
-CB_DEPTH = 5.0        # [GROUND TRUTH] A-hole recess depth (user spec)
-CB_SIDE_A = True      # [GROUND TRUTH] v2 (user): recesses cut from the A
-                      #   mating face (z=0), not the B face
-BUTTON_HEAD_DIA = 10.4  # [STANDARD] ISO 7380 M6 button head diameter (h 3.3)
-CB_DIA = 10.0         # [GROUND TRUTH] v2 (user): recess diameter reduced 1mm
-                      #   from the Ø11 v1. NOTE: smaller than an ISO 7380 M6
-                      #   button head (10.4) -- user directed; their hardware
+# Screw recesses (v6, user, M5 hardware):
+#  - A-quad (old stalks / column side, opens on A face z=0): CONICAL
+#    countersink for DIN 7991 / ISO 10642 M5 flat heads, flush.
+#  - B-quad (new stalks, opens on B face z=THICKNESS): HEX pocket (v7, user
+#    2026-09-05: the v6 circular rebate let the hex spin -- useless for
+#    captive hardware). Sized for M5 hex (nut ISO 4032 or DIN 933 head, both
+#    8 A/F): pocket captures the hex so the far end tightens single-handed.
+#    At 4mm the pocket keeps a 1.5 floor -> 2.5 deep -> an M5 nut (4.7 tall)
+#    sits ~2.2 proud, a DIN 933 head (~3.7) ~1.2 proud.
+# Corner geometry with M5: the BR corner is fully clean; TR still merges (the
+# long-accepted clash) except in a thin band near z~1 where all features
+# separate.
+RECESS_A = True
+RECESS_B = True
+CSK_HEAD_DIA = 10.0   # [STANDARD] DIN 7991 M5 flat head max Ø, 90 deg
+CSK_DIA = 10.6        # [CHOSEN] cone mouth: head + fit, flush-to-just-below
+CSK_DEPTH = (CSK_DIA - HOLE_DIA) / 2            # 2.55 (90 deg)
+HEX_AF = 8.0          # [STANDARD] M5 hex across flats (ISO 4032 nut / DIN 933)
+POCKET_AF = 8.4       # [CHOSEN] pocket across flats: 0.2/side over the hex --
+                      #   snug capture; printed pockets run tight, so this
+                      #   lands close-fitting, file if needed
+POCKET_ACROSS_CORNERS = POCKET_AF / math.cos(math.pi / 6)   # 9.70 [DERIVED]
+REBATE_FLOOR = 1.5    # [CHOSEN] min material under the hex
+REBATE_DEPTH = THICKNESS - REBATE_FLOOR         # 2.5
+
+# PETG sacrificial bed-plate (raft) the PAHT-CF part prints onto: SOLID slab,
+# no holes (user spec) -- the weak PA/PETG interface releases the part and the
+# slab provides strain accommodation + thermal decoupling from the bed.
+RAFT_H = 1.2          # [CHOSEN] 6 layers @ 0.2: stiff enough to spread edge
+                      #   peel, thick enough to decouple part from bed temp
+RAFT_MARGIN = 4.0     # [CHOSEN] slab extends past the part outline so the
+                      #   part edge lands fully supported
 PAIR_TOL = 0.7        # [CHOSEN] max residual between the redundant sixth
                       #   distance and the solved quad. Raised from 0.5 at the
                       #   user's direction to accept fixture B's 0.56 residual

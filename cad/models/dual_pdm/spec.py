@@ -14,12 +14,18 @@ lives here, tagged by provenance:
   [DERIVED]       computed here from the above; no new information
 
 === GROUND TRUTH ===============================================================
-Two dingoPDM V7.5 boards, identical orientation (so the +12V studs share one
-line and the GND studs share another -> straight bus bars), long edges
-adjacent, separated by GAP. That layout is the root of everything: the
-enclosure is placed to contain the boards; the templates derive from the
-boards and enclosure; the heatsink is a free consumer (nothing here depends
-on its dimensions -- it merely must be large enough to reach the screws).
+v3 (user 2026-08-28): ENCLOSURE-FIRST. Two STOCK single V7.5 cases, already
+printed in PAHT-CF, sit side by side on the user's EXISTING heatsink plate,
+HS_LEN = 204 long in the join (x) direction. The cases are positioned for
+maximum separation with their OUTER ear tips flush with the heatsink ends;
+at that pitch the INNER (join-side) ears overlap by ~21 -- the user cuts
+those tabs by hand to interleave (no more crop-wall-and-bridge, no divider,
+no joint screw: enclosure.py/raft.py/assembly.py and template3 describe the
+OBSOLETE printed-dual design). Boards keep their orientation and stay
+CENTRED in their cases (so the roof windows line up) -> board positions are
+DERIVED from the case positions. The drill template follows, and adds
+chain-drill holes along the corners and edges of every relief pocket to
+reduce milling.
 
 === DATUM ======================================================================
 z = 0 at the UNDERSIDE of the PCBs (user's choice).
@@ -31,7 +37,9 @@ board A; add PITCH to x for board B).
 """
 
 # === GROUND TRUTH =============================================================
-GAP = 10.0            # [GROUND TRUTH] board edge-to-edge separation
+HS_LEN = 204.0        # [MEASURED] the user's existing heatsink plate, length
+                      #   in the join (x) direction (user 2026-08-28; the
+                      #   first-quoted 125 was corrected to 204)
 
 # === MEASURED: the board -- dingoPDM repo, DingoPDM/DingoPDM.kicad_pcb =======
 BOARD_W = 72.39       # [MEASURED] Edge.Cuts gr_rect, x extent
@@ -78,17 +86,22 @@ CASE_SCREW_DY = 43.625  #   center (Case.step bosses + Baseplate.step holes)
 CASE_SCREW_HOLE = 7.0   # [MEASURED] M6 clearance holes in the lobes
 
 # === MEASURED: Baseplate.step + assembly STEP + dingoPDM docs ================
-MOUNT_DIA = 8.0       # [CHOSEN] end mounting holes: UN-THREADED clearance for
-                      #   bolts into nut-serts in the car body. 8.0 = M6 bolt
-                      #   with 2mm alignment float (matches the stock
-                      #   Baseplate.step hole, which was 5/16" imperial-intent;
-                      #   bump to 9.0 if using M8 nut-serts). Positions are on
-                      #   the plate-edge mid-lines at (+-CASE_SCREW_DX, mid)
-                      #   per Baseplate.step
+MOUNT_DIA = 7.0       # [GROUND TRUTH] end mounting holes: UN-THREADED
+                      #   clearance, Ø7 (user 2026-08-28; was 8). On the
+                      #   plate-edge mid-lines at (+-CASE_SCREW_DX, mid) --
+                      #   BETWEEN the ear pairs at each end, so still on the
+                      #   204 plate and reachable from above
 REDCUBE_TOP = 15.23   # [MEASURED] DingoPDM_V7_5.step: RedCube block top, datum
                       #   z -- pokes THROUGH the roof; bus bars bolt on above it
 PAD_T = 0.5           # [MEASURED] docs/hardware/case.md: 0.5 thermal pad both
-                      #   sides of the heatsink (e.g. 3M 5583S)
+                      #   sides of the heatsink (e.g. 3M 5583S).
+                      #   v2 [GROUND TRUTH] (user, 2026-08-27): SINGLE plate --
+                      #   no spacer-plate + baseplate stack. THT pin reliefs are
+                      #   milled into the one plate; ONE pad layer on its top
+                      #   face (heights unchanged: HS_TOP = -PAD_T). Pad must be
+                      #   cut to ~the PCB outline -- if it runs under the case
+                      #   walls (inner face 1.0 past the PCB edge) the FLAT_BASE
+                      #   enclosure rides 0.5 proud and the screw seats shift.
 # stock hardware (docs/hardware/case.md exploded-assembly table):
 #   board screws M3x0.5x12, case screws M6x1.0x14 -- both reused unchanged
 
@@ -148,8 +161,19 @@ HS_THICK_NOM = 12.0   # [CHOSEN] nominal heatsink thickness, ASSEMBLY DISPLAY
                       #   ONLY -- nothing derives from it
 
 # === DERIVED ==================================================================
-PITCH = BOARD_W + GAP                  # 82.39 board-center pitch
+# v3 enclosure-first: case ear tips flush with the heatsink ends fix the
+# case pitch; boards stay centred in their cases.
+CASE_TAB_TIP = CASE_SCREW_DX + LOBE_R  # 56.195 ear tip from case centre
+                                       #   (verified = Case.step bbox half-x)
+PITCH = HS_LEN - 2 * CASE_TAB_TIP      # 91.61 case/board-centre pitch
+GAP = PITCH - BOARD_W                  # 19.22 board edge-to-edge (was 10 in
+                                       #   the board-first v1 design)
 B_OFF = PITCH                          # add to x for any board-B feature
+# facing-ear geometry at the join (the user cuts these to interleave):
+EAR_OVERLAP = 2 * CASE_TAB_TIP - PITCH # 20.78 of x where both cases' inner
+                                       #   ears want to exist
+WALL_GAP = PITCH - 2 * WALL_OUT        # 11.22 clear air between facing walls
+assert EAR_OVERLAP > 0 and WALL_GAP > 0, 'case placement infeasible'
 CTR_A = (BOARD_W / 2, BOARD_L / 2)     # (36.195, 47.625) board A center
 CTR_B = (CTR_A[0] + PITCH, CTR_A[1])
 JOIN_X = CTR_A[0] + PITCH / 2          # 77.39 gap centerline
@@ -160,17 +184,41 @@ BORE_M6 = TAP_DRILL_M6 + GUIDE_CLEAR + PRINT_COMP    # 5.3 guide bore
 BORE_MOUNT = MOUNT_DIA + GUIDE_CLEAR + PRINT_COMP    # 8.3 guide bore
 HS_TOP = -PAD_T                        # -0.5 heatsink top = PCB underside - pad
 REBATE_DEPTH = SKIRT_DROP              # 3.175 exactly: skirt seats on floor
+
+FLAT_BASE = True      # [GROUND TRUTH] v2 (user, 2026-08-27): remove the skirt/
+                      #   flange below the heatsink-top plane -- the heat shield
+                      #   base plate will NOT get the milled rebate. Enclosure
+                      #   bottom becomes a flat face at z = HS_TOP, seating
+                      #   directly on the plate at the same height the rebated
+                      #   design gave (REBATE_DEPTH == SKIRT_DROP). Template T3
+                      #   (skirt rebate) is obsolete under this option.
 SEAT_Z = LOBE_TOP                      # 4.8 joint screw seat = stock seat
 POCKET_HALF = PIN_GRID + PIN_R + RELIEF_MARGIN       # 5.01 RedCube pocket half
 DT_HALF = (DT_PIN_HALF[0] + DT_PIN_DRILL / 2 + DT_MARGIN,   # 12.91
            DT_PIN_HALF[1] + DT_PIN_DRILL / 2 + DT_MARGIN)   # 6.36
-# case screw lines and end mounting holes (enclosure-derived, both boards):
-SX1, SX2 = CTR_A[0] - CASE_SCREW_DX, CTR_B[0] + CASE_SCREW_DX  # -12.0, 166.78
+# case screw positions (v3: ALL EIGHT lobes exist -- 4 outer + 4 inner. The
+# inner pairs sit in the ear-overlap zone only 2*CASE_SCREW_DX - PITCH =
+# 4.78 apart in x; after the user cuts the tabs, only the SURVIVING inner
+# ears get tapped -- the template drills both candidates):
+SX1, SX2 = CTR_A[0] - CASE_SCREW_DX, CTR_B[0] + CASE_SCREW_DX  # -12.0, 176.0
+SXI_A = CTR_A[0] + CASE_SCREW_DX       # 84.39  board-A inner screws
+SXI_B = CTR_B[0] - CASE_SCREW_DX       # 79.61  board-B inner screws
 SY1, SY2 = CTR_A[1] - CASE_SCREW_DY, CTR_A[1] + CASE_SCREW_DY  # 4.0, 91.25
 CASE_SCREWS = [(SX1, SY1), (SX1, SY2), (SX2, SY1), (SX2, SY2)]
-JOINT_SCREW = (JOIN_X, JOINT_V)
-MOUNT_HOLES = [(SX1, CTR_A[1]), (SX2, CTR_A[1])]     # end mid-lines, collinear
-                                                     # with the lobe screws
+CASE_SCREWS_INNER = [(SXI_A, SY1), (SXI_A, SY2), (SXI_B, SY1), (SXI_B, SY2)]
+# ^ [SUPERSEDED AS-BUILT 2026-09-01] the stock inner-hole positions above no
+# longer exist on the hardware. As built: the user cut both cases' inner tabs
+# at 102.0 from the opposite outer tip (tab ends butt at the heatsink
+# centreline, bisecting the stock holes), installed the covers, drilled NEW
+# round holes through the partial arcs IN PLACE, then match-drilled and
+# tapped M6 into the heatsink at those spots. The inner screw positions are
+# therefore defined by the physical parts (near the butt line, one per tab
+# end) -- do not derive them from this spec; any future template must treat
+# them as as-drilled.
+JOINT_SCREW = (JOIN_X, JOINT_V)        # [OBSOLETE v3] printed-dual only
+MOUNT_HOLES = [(SX1, CTR_A[1]), (SX2, CTR_A[1])]     # end mid-lines, between
+                                                     # the ear pairs (restored
+                                                     # v3.1, Ø MOUNT_DIA)
 def both(pt):
     """Board-local point -> [board A instance, board B instance]."""
     return [pt, (pt[0] + B_OFF, pt[1])]
@@ -190,6 +238,37 @@ RELIEF_POCKETS = [r for off in (0, B_OFF) for r in (
      DT_CTR_LOCAL[0] + off + DT_HALF[0], DT_CTR_LOCAL[1] + DT_HALF[1]),
     (STUD_N_LOCAL[0] + off - POCKET_HALF, STUD_N_LOCAL[1] - POCKET_HALF,
      STUD_N_LOCAL[0] + off + POCKET_HALF, STUD_N_LOCAL[1] + POCKET_HALF))]
+# chain drilling (v3): guide bores along the corners and edges of every
+# relief pocket so most pocket material comes out with a drill before the
+# mill. Blind holes -- RELIEF_DEPTH, same convention as the old corner
+# drills. Hole centres are inset D_CHAIN/2 from the pocket walls (tangent
+# from inside); intermediates keep the TEMPLATE web >= 0.4 between bores.
+D_CHAIN = 4.0         # [CHOSEN] chain drill diameter -- change to match the
+                      #   drill actually in hand and re-export
+BORE_CHAIN = D_CHAIN + GUIDE_CLEAR + PRINT_COMP      # 4.3 guide bore
+
+def _chain_ring(rect):
+    x1, y1, x2, y2 = rect
+    r = D_CHAIN / 2
+    pts = [(x1 + r, y1 + r), (x2 - r, y1 + r), (x2 - r, y2 - r), (x1 + r, y2 - r)]
+    min_pitch = BORE_CHAIN + 0.4
+    for span, fixed, along in (
+            (x2 - x1 - D_CHAIN, (y1 + r, y2 - r), 'x'),
+            (y2 - y1 - D_CHAIN, (x1 + r, x2 - r), 'y')):
+        nseg = max(1, int(span // min_pitch))
+        for i in range(1, nseg):
+            d = span * i / nseg
+            for f in fixed:
+                pts.append((x1 + r + d, f) if along == 'x' else (f, y1 + r + d))
+    return pts
+
+CHAIN_DRILLS = [p for rect in RELIEF_POCKETS for p in _chain_ring(rect)]
+# the RedCube pocket-corner chain holes swallow the protruding corner pins,
+# superseding the old CORNER_DRILLS dog-bones:
+_corner_to_pin = ((POCKET_HALF - D_CHAIN / 2) - PIN_GRID) ** 2 * 2
+assert _corner_to_pin ** 0.5 <= D_CHAIN / 2 - PIN_R, \
+    'chain corner hole does not cover the RedCube corner pin'
+
 # KiCad-export STEP origin in the datum frame (for placing DingoPDM_V7_5.step):
 KICAD_ORG = (37.846, 61.976)           # = -EdgeCuts min x, +EdgeCuts max y
 

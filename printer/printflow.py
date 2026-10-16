@@ -91,11 +91,18 @@ def gcode_summary(threemf):
     return out
 
 
+FRONT_MARGIN_MIN = 40.0   # mm of plate to keep clear at the front
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("model", help="STL to prepare")
     ap.add_argument("--center", nargs=2, type=float, metavar=("X", "Y"))
     ap.add_argument("--back-ymax", type=float)
+    ap.add_argument("--allow-front", action="store_true",
+                    help="permit layer 1 inside the front margin (normally "
+                         "refused: the front edge of the plate is where lift "
+                         "starts -- see verify_gcode.py)")
     ap.add_argument("--brim", type=float)
     ap.add_argument("--plate", help="override the declared plate")
     ap.add_argument("--print", dest="do_print", action="store_true")
@@ -188,6 +195,10 @@ def main():
 
     # --- verify gate ---------------------------------------------------------
     expect = {"nozzle_diameter": noz_d, "filament_type": fil["type"]}
+    # Standing rule: prints go to the BACK of the bed. Enforced rather than
+    # remembered -- see the gate in verify_gcode.py.
+    if not args.allow_front:
+        expect["front_margin_min"] = FRONT_MARGIN_MIN
     if "flow_ratio" in ov:
         expect["flow_ratio"] = ov["flow_ratio"]
     if "bed_temp_first_layer" in ov:

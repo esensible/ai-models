@@ -18,7 +18,10 @@ EXPECT.json (all fields optional except where noted):
   "initial_layer_speed": 25,
   "bed_ramp":         [85, 80, 75, 70],// injected M140 steps from layer 2
   "bbox":             [xmin, ymin, xmax, ymax],  // layer-1 extrusion bounds
-  "bbox_tol":         2.0
+  "bbox_tol":         2.0,
+  "must_contain":     ["M400 U1", "M109 S290"]   // literal lines that must be
+                                       // present (spliced multi-material jobs:
+                                       // the header only describes material A)
 }
 Exit 0 = verified; nonzero with a message = do not print.
 """
@@ -65,12 +68,20 @@ def main():
     def first_num(val):
         return float(val.split(",")[0]) if val else None
 
+    # A few filament profiles emit a GENERIC type string in the gcode header
+    # that differs from the product name we declare in slice/filaments/.
+    # Bambu's "PAHT-CF" is the marketing name; its profile writes PA-CF. The
+    # alias is deliberately narrow -- one declared name maps to one accepted
+    # header value -- so this still catches slicing with the wrong filament.
+    TYPE_ALIASES = {"PAHT-CF": {"PA-CF"}}
+
     for key, field in (("nozzle_diameter", "nozzle_diameter"),
                        ("filament_type", "filament_type")):
         if field in exp:
             got = header(key)
             got_first = got.split(",")[0] if got else None
-            if got_first != str(exp[field]):
+            want = str(exp[field])
+            if got_first != want and got_first not in TYPE_ALIASES.get(want, ()):
                 fail(f"{key}: gcode says {got!r}, expected {exp[field]!r}")
     checks = (("nozzle_temp", "nozzle_temperature"),
               ("flow_ratio", "filament_flow_ratio"),
@@ -111,6 +122,26 @@ def main():
 
     if "bed_ramp" in exp and seen_ramp != list(exp["bed_ramp"]):
         fail(f"bed ramp in gcode {seen_ramp} != expected {exp['bed_ramp']}")
+    for needle in exp.get("must_contain", []):
+        if not any(ln.startswith(needle) for ln in lines):
+            fail(f"required line missing: {needle!r}")
+    # PLACEMENT GATE: the front edge of the plate is the coldest, draughtiest
+    # part of it (the P1S door is at the front, and the printer lives in an
+    # unheated shed), so that is where lift starts. Andrew's standing rule is
+    # that prints go to the BACK of the bed -- ./print.sh --back-ymax 250.
+    # Documenting it was not enough: battery_clip was sliced on auto-centre at
+    # y 3.9..248.1 and died at layer 5 (2026-09-18). This refuses the job
+    # instead.
+    if "front_margin_min" in exp:
+        need = float(exp["front_margin_min"])
+        if lo[1] > hi[1]:
+            fail("no layer-1 extrusion found")
+        if lo[1] < need:
+            fail(f"layer 1 reaches y={lo[1]:.1f}, inside the {need:.0f}mm front "
+                 f"margin -- push it BACK (--back-ymax 250), and for a part "
+                 f"over ~200mm long rotate the long axis to X first. Pass "
+                 f"--allow-front only if the front really is intended.")
+
     if "bbox" in exp:
         tol = float(exp.get("bbox_tol", 2.0))
         want = exp["bbox"]

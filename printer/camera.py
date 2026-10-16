@@ -26,24 +26,33 @@ def grab(host, code, out):
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
 
+    def read_frame(ss):
+        hdr = b""
+        while len(hdr) < 16:
+            chunk = ss.recv(16 - len(hdr))
+            if not chunk:
+                raise RuntimeError("no data (bad access code?)")
+            hdr += chunk
+        size = struct.unpack("<I", hdr[0:4])[0]
+        if not (0 < size < 5_000_000):
+            raise RuntimeError(f"implausible frame size {size}")
+        img = b""
+        while len(img) < size:
+            chunk = ss.recv(min(8192, size - len(img)))
+            if not chunk:
+                break
+            img += chunk
+        return img
+
     with socket.create_connection((host, 6000), timeout=10) as sk:
         with ctx.wrap_socket(sk, server_hostname=host) as ss:
             ss.write(auth)
-            hdr = b""
-            while len(hdr) < 16:
-                chunk = ss.recv(16 - len(hdr))
-                if not chunk:
-                    raise RuntimeError("no data (bad access code?)")
-                hdr += chunk
-            size = struct.unpack("<I", hdr[0:4])[0]
-            if not (0 < size < 5_000_000):
-                raise RuntimeError(f"implausible frame size {size}")
-            img = b""
-            while len(img) < size:
-                chunk = ss.recv(min(8192, size - len(img)))
-                if not chunk:
-                    break
-                img += chunk
+            # The printer serves a PREVIOUSLY-ENCODED frame immediately on
+            # connect -- taking it means seeing the past (bit us repeatedly:
+            # dark pre-light frames, stale bed states; user-diagnosed
+            # 2026-09-08). Discard it and save the next, freshly-encoded one.
+            read_frame(ss)
+            img = read_frame(ss)
 
     if not (img[:2] == b"\xff\xd8" and img[-2:] == b"\xff\xd9"):
         print(f"WARN: frame not a clean JPEG (len={len(img)}, "

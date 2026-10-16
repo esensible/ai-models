@@ -1,10 +1,10 @@
-# Dual-CANBoard enclosure assembly (build123d). All values from spec.py.
+# Single-CANBoard enclosure assembly v2 (build123d). All values from spec.py.
 # Connector solids are the VENDOR STEP models from Amphenol Tuchel Industrial
 # (amphenol-industrial.de product pages, direct .stp downloads):
-#   c3d-at04-12pa-pm11-01-000.stp / c3d-at04-4p-pm11-01-000.stp
+#   AT04-12PA-PM11.stp / AT04-4P-PM11.stp
 # Their local frames (measured by section scan): x = flange long axis
 # (centered), z = flange tall axis, y = mating axis with the nose toward -y;
-# flange front face at y = tip + nose length. We remap to our convention:
+# flange front face at y = tip + nose length. conn12()/conn4() remap to:
 # z=0 at the flange front face (pocket-floor contact plane), nose toward +z.
 from build123d import *
 import copy
@@ -31,20 +31,24 @@ def conn4():
     z_ctr = (bb.min.Z + bb.max.Z) / 2                    # flange z center (-1.0)
     return Rot(-90, 0, 0) * Pos(0, -(bb.min.Y + S.C4_NOSE), -z_ctr) * step
 
-# place: flange front face against the pocket floor, nose pointing outward
-conn_s = Pos(S.CTR_X, S.IY1 - S.POCKET, S.CONN_Z) * Rot(90, 0, 0) * conn12()
-conn_n = Pos(S.CTR_X, S.IY2 + S.POCKET, S.CONN_Z) * Rot(-90, 0, 0) * conn12()
-conn_w = Pos(S.IX1 - S.POCKET, S.CTR_Y, S.CONN_Z) * Rot(0, -90, 0) * \
-    Rot(0, 0, 90) * conn4()                         # -x wall, nose -x
+# place: flange front face against its pocket floor, nose pointing outward.
+# v2: 12P on the +y wall (nose +y), two 4P side by side on the -y wall (nose -y)
+conn_12 = Pos(S.CTR_X, S.IY2 + S.POCKET, S.CONN_Z) * Rot(-90, 0, 0) * conn12()
+conn_4 = [Pos(cx, S.IY1 - S.POCKET, S.CONN_Z) * Rot(90, 0, 0) * copy.copy(conn4())
+          for cx in S.C4_X]
 
 pcba = import_step(S.canboard('Export/V2/CANBoard_V2.step'))
-board_A = Pos(*S.KICAD_ORG, 0) * copy.copy(pcba)
-board_B = Pos(S.KICAD_ORG[0] + S.B_OFF, S.KICAD_ORG[1], 0) * copy.copy(pcba)
+board = Pos(*S.KICAD_ORG, 0) * pcba
+bb = board.bounding_box()
+assert abs(bb.min.X) < 0.5 and abs(bb.min.Y) < 0.5 and \
+    abs(bb.max.X - S.BOARD) < 0.5 and abs(bb.max.Y - S.BOARD) < 0.5, \
+    f'board not at datum: ({bb.min.X:.2f},{bb.min.Y:.2f})..({bb.max.X:.2f},{bb.max.Y:.2f})'
 base = import_step(f'{S.OUT}/canbox_base.step')
 lid = import_step(f'{S.OUT}/canbox_lid.step')
 
-parts = [('base', base), ('lid', lid), ('board_A', board_A), ('board_B', board_B),
-         ('conn12_south', conn_s), ('conn12_north', conn_n), ('conn4_west', conn_w)]
+parts = [('base', base), ('lid', lid), ('board', board),
+         ('conn12_north', conn_12)] + \
+        [(f'conn4_south_{i + 1}', c) for i, c in enumerate(conn_4)]
 for name, p in parts:
     p.label = name
     bb = p.bounding_box()
@@ -73,32 +77,33 @@ def in_gasket_zone(piece, axis, floor, sign):
     zone = sorted([floor, floor + sign * GASKET_BAND])
     return zone[0] - 0.01 <= lo and hi <= zone[1] + 0.01
 
-checks = [('conn12_south vs board_A', conn_s, board_A, None),
-          ('conn12_south vs board_B', conn_s, board_B, None),
-          ('conn12_north vs board_A', conn_n, board_A, None),
-          ('conn12_north vs board_B', conn_n, board_B, None),
-          ('conn4_west vs board_A', conn_w, board_A, None),
-          ('conn12_south vs base', conn_s, base, (1, S.IY1 - S.POCKET, -1)),
-          ('conn12_north vs base', conn_n, base, (1, S.IY2 + S.POCKET, 1)),
-          ('conn4_west vs base', conn_w, base, (0, S.IX1 - S.POCKET, -1)),
+checks = [('conn12 vs board', conn_12, board, None),
+          ('conn12 vs base', conn_12, base, (1, S.IY2 + S.POCKET, 1)),
+          ('board vs base', board, base, None),
           ('lid vs base', lid, base, None),
-          ('lid vs conn12_south', lid, conn_s, None),
-          ('conn4 vs conn12_south', conn_w, conn_s, None)]
+          ('lid vs conn12', lid, conn_12, None)]
+for i, c in enumerate(conn_4, 1):
+    checks += [(f'conn4_{i} vs board', c, board, None),
+               (f'conn4_{i} vs base', c, base, (1, S.IY1 - S.POCKET, -1)),
+               (f'lid vs conn4_{i}', lid, c, None),
+               (f'conn12 vs conn4_{i}', conn_12, c, None)]
+for a, b in zip(conn_4, conn_4[1:]):
+    checks.append(('conn4 vs conn4', a, b, None))
 for label, a, b, gasket in checks:
     pieces = clash_pieces(a, b)
     if gasket:
         bad = [p for p in pieces if not in_gasket_zone(p, *gasket)]
         gv = sum(p.volume for p in pieces) - sum(p.volume for p in bad)
         v = sum(p.volume for p in bad)
-        print(f'{label:28s} gasket-crush {gv:7.1f}  other (want 0): {v:.4f}')
+        print(f'{label:24s} gasket-crush {gv:7.1f}  other (want 0): {v:.4f}')
     else:
         v = sum(p.volume for p in pieces)
-        print(f'{label:28s} intersection (want 0): {v:.4f}')
+        print(f'{label:24s} intersection (want 0): {v:.4f}')
     assert v < 1e-6, label
 
 asm = Compound(children=[p for _, p in parts], label='canbox')
 export_step(asm, f'{S.OUT}/canbox_assembly.step')
-try:   # printable parts only: imported meshes (boards, vendor connectors)
+try:   # printable parts only: imported meshes (board, vendor connectors)
     m = Mesher()   # fail lib3mf validation
     for name, p in parts:
         if name in ('base', 'lid'):

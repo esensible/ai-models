@@ -146,7 +146,8 @@ def summarize_filament(p):
     return out or ["(no filament info reported)"]
 
 
-def start_print(host, code, serial, remote_3mf, name, use_ams=False, plate=1, bed="textured_plate"):
+def start_print(host, code, serial, remote_3mf, name, use_ams=False, plate=1, bed="textured_plate",
+                bed_leveling=True, vibration_cali=True):
     cmd = {"print": {
         "command": "project_file",
         "param": f"Metadata/plate_{plate}.gcode",
@@ -155,9 +156,9 @@ def start_print(host, code, serial, remote_3mf, name, use_ams=False, plate=1, be
         "use_ams": use_ams,
         "timelapse": False,
         "bed_type": bed,
-        "bed_leveling": True,
+        "bed_leveling": bed_leveling,
         "flow_cali": False,
-        "vibration_cali": True,
+        "vibration_cali": vibration_cali,
         "layer_inspect": False,
         "task_id": "0", "subtask_id": "0", "project_id": "0", "profile_id": "0",
         "sequence_id": "0",
@@ -183,6 +184,10 @@ def main():
     ap.add_argument("--remote", help="remote filename (default: basename of file)")
     ap.add_argument("--name", help="subtask name shown on printer")
     ap.add_argument("--use-ams", action="store_true")
+    ap.add_argument("--no-bed-leveling", action="store_true",
+                    help="skip G29 (printer reuses its last saved mesh) — for printing "
+                         "onto an existing raft/plate feature the probe must not touch")
+    ap.add_argument("--no-vibration-cali", action="store_true")
     args = ap.parse_args()
 
     host = os.environ.get("BAMBU_HOST"); code = os.environ.get("BAMBU_CODE"); serial = os.environ.get("BAMBU_SERIAL")
@@ -226,7 +231,9 @@ def main():
         return 0
 
     print(f"[print] starting '{name}' from {remote} ...")
-    cmd = start_print(host, code, serial, remote, name, use_ams=args.use_ams)
+    cmd = start_print(host, code, serial, remote, name, use_ams=args.use_ams,
+                      bed_leveling=not args.no_bed_leveling,
+                      vibration_cali=not args.no_vibration_cali)
     print("[print] sent project_file command:")
     print(json.dumps(cmd, indent=2))
     return 0

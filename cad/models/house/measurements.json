@@ -1,0 +1,153 @@
+{
+  "name": "house",
+  "units": "mm",
+  "assumptions": {
+    "default_doorway_width": {
+      "value": 820,
+      "source": "user-directed modelling assumption",
+      "scope": "All doorways unless overridden by a specific measurement",
+      "note": "Provisional doorway width; door leaf, clear opening, and frame opening are not yet distinguished."
+    }
+  },
+  "orientation": "Front entrance at bottom of reference floor plan; left and right follow that view.",
+  "measurements": [
+    {
+      "id": "entry_hall_width_at_front_door",
+      "location": "Entry hallway at front door",
+      "dimension": "width",
+      "value": 1720,
+      "source": "user measurement",
+      "measurement_endpoints": "Not yet specified"
+    },
+    {
+      "id": "entry_hall_front_door_to_right_step",
+      "location": "Entry hallway",
+      "dimension": "length to rightward step",
+      "value": 4260,
+      "source": "user measurement",
+      "measurement_endpoints": "Front door to the point where the hallway steps to the right; precise door datum not yet specified"
+    },
+    {
+      "id": "entry_hall_narrow_section_width",
+      "location": "Narrow section of entry hallway",
+      "dimension": "width",
+      "value": 815,
+      "source": "user measurement",
+      "measurement_endpoints": "Across narrow hallway section; measurement surfaces not yet specified"
+    },
+    {
+      "id": "entry_hall_next_wider_section_width",
+      "location": "Hallway section after the narrow section, moving from front door toward rear",
+      "dimension": "width",
+      "value": 1450,
+      "source": "user measurement",
+      "measurement_endpoints": "Across next wider hallway section; measurement surfaces not yet specified"
+    },
+    {
+      "id": "entry_hall_second_section_length",
+      "location": "Second section of entry hallway",
+      "dimension": "length",
+      "value": 3960,
+      "source": "user measurement",
+      "measurement_endpoints": "Second hallway section; exact endpoints and inclusion of narrow transition not yet specified"
+    },
+    {
+      "id": "kitchen_recess_width",
+      "location": "Recess portion of kitchen",
+      "dimension": "width",
+      "value": 1830,
+      "source": "user measurement",
+      "measurement_endpoints": "Across kitchen recess; exact recess position and measurement surfaces not yet specified"
+    },
+    {
+      "id": "kitchen_zone_and_passage_cross_house_span",
+      "location": "Kitchen zone including passage past the end of kitchen",
+      "dimension": "cross-house span",
+      "value": 4815,
+      "source": "user measurement",
+      "measurement_endpoints": "From back edge of kitchen to far side of adjacent hallway, measured across the house; precise physical surfaces not yet specified"
+    },
+    {
+      "id": "kitchen_to_living_wall_thickness",
+      "location": "Wall at transition from kitchen area into main living space, moving toward rear of house",
+      "dimension": "wall thickness",
+      "value": 350,
+      "source": "user measurement",
+      "measurement_endpoints": "Across wall thickness; exact wall segment not yet specified"
+    },
+    {
+      "id": "laundry_front_to_back_width",
+      "location": "Laundry",
+      "dimension": "width along house front-to-back direction",
+      "value": 1826,
+      "source": "user measurement",
+      "measurement_endpoints": "Across laundry in front-to-back direction; measurement surfaces not yet specified"
+    },
+    {
+      "id": "laundry_side_to_side_span",
+      "location": "Laundry",
+      "dimension": "span along house side-to-side direction",
+      "value": 2015,
+      "source": "user measurement",
+      "measurement_endpoints": "Across laundry in house side-to-side direction; measurement surfaces not yet specified"
+    },
+    {
+      "id": "ensuite_side_to_side_span",
+      "location": "Ensuite immediately left of laundry on reference plan",
+      "dimension": "span along house side-to-side direction",
+      "value": 1947,
+      "source": "user measurement",
+      "measurement_endpoints": "Across ensuite in house side-to-side direction, same direction as previous laundry measurement; measurement surfaces not yet specified"
+    },
+    {
+      "id": "ensuite_front_to_back_span",
+      "location": "Ensuite immediately left of laundry on reference plan",
+      "dimension": "span along house front-to-back direction",
+      "value": 1806,
+      "source": "user measurement",
+      "measurement_endpoints": "Along ensuite parallel to house front-to-back axis; measurement surfaces not yet specified"
+    },
+    {
+      "id": "laundry_doorway_width",
+      "location": "Laundry doorway",
+      "dimension": "doorway width",
+      "value": 660,
+      "source": "user estimate",
+      "status": "provisional",
+      "overrides": "default_doorway_width",
+      "measurement_endpoints": "Door leaf, clear opening, and frame opening not yet distinguished"
+    },
+    {
+      "id": "right_bathroom_side_to_side_span",
+      "location": "Right-side bathroom beside kitchen and rear bedroom",
+      "dimension": "span along house side-to-side direction",
+      "value": 2407,
+      "source": "user measurement",
+      "measurement_endpoints": "Across bathroom perpendicular to house front-to-back axis; measurement surfaces not yet specified"
+    },
+    {
+      "id": "right_bathroom_front_to_back_span",
+      "location": "Right-side bathroom beside kitchen and rear bedroom",
+      "dimension": "span along house front-to-back direction",
+      "value": 2272,
+      "source": "user measurement",
+      "measurement_endpoints": "Along bathroom parallel to house front-to-back axis; measurement surfaces not yet specified"
+    },
+    {
+      "id": "toilet_side_to_side_span",
+      "location": "Little toilet off right-side bathroom, behind kitchen",
+      "dimension": "span along house side-to-side direction",
+      "value": 1039,
+      "source": "user measurement",
+      "measurement_endpoints": "Across toilet perpendicular to house front-to-back axis; measurement surfaces not yet specified"
+    },
+    {
+      "id": "toilet_front_to_back_span",
+      "location": "Little toilet off right-side bathroom, behind kitchen",
+      "dimension": "span along house front-to-back direction",
+      "value": 1800,
+      "source": "user measurement",
+      "measurement_endpoints": "Along toilet parallel to house front-to-back axis; measurement surfaces not yet specified"
+    }
+  ]
+}
